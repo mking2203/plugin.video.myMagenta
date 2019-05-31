@@ -21,6 +21,10 @@ import xbmc
 import xbmcgui
 import xbmcaddon
 import xbmcplugin
+import inputstreamhelper
+
+PROTOCOL = 'ism'
+DRM = 'com.widevine.alpha'
 
 def mainSelector():
 
@@ -31,6 +35,9 @@ def mainSelector():
 
     li = xbmcgui.ListItem(label='TV', thumbnailImage='DefaultFolder.png')
     xbmcplugin.addDirectoryItem(HANDLE, PATH + '?mode=tv', li, True)
+
+    li = xbmcgui.ListItem(label='Trailer Saphirblau', thumbnailImage='DefaultFolder.png')
+    xbmcplugin.addDirectoryItem(HANDLE, PATH + '?mode=trailer', li, True)
 
     xbmcplugin.endOfDirectory(HANDLE, cacheToDisc=False)
 
@@ -226,6 +233,74 @@ def showTV():
         xbmcplugin.addSortMethod(HANDLE, xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE)
         xbmcplugin.endOfDirectory(HANDLE, cacheToDisc=False)
 
+def showTrailer():
+
+    headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:67.0) Gecko/20100101 Firefox/67.0',
+    'Accept': 'application/json, text/javascript, */*; q=0.01',
+    'Accept-Language': 'de,en-US;q=0.7,en;q=0.3',
+    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+    'X-Requested-With': 'XMLHttpRequest',
+    'Connection': 'keep-alive',
+    'Referer': 'https://web.magentatv.de/EPG/' }
+
+    uid = uuid.uuid4().hex
+
+    data = {
+        "terminalid":"00:00:00:00:00:00",
+        "mac":"00:00:00:00:00:00",
+        "terminaltype":"WEBTV",
+        "utcEnable":1,
+        "timezone":"Africa/Ceuta",
+        "userType":3,
+        "terminalvendor":"Unknown",
+        "preSharedKeyID":"PC01P00002",
+        "cnonce": uid,
+        "areaid":"1",
+        "templatename":"NGTV",
+        "usergroup":"-1",
+        "subnetId":"4901" }
+
+    payload = json.dumps(data)
+
+    s = requests.Session()
+    response = s.post('https://web.magentatv.de/EPG/JSON/Authenticate?SID=firstup&T=Windows_firefox_67', headers = headers, data=payload)
+
+    if (response.status_code == 200):
+
+        token = s.cookies['CSRFSESSION']
+
+        # get details of playlist
+        url = 'https://wcss.t-online.de/cvss/IPTV2015%40Mobile/vodclient/v1/assetdetails/44593/GN_MV007404670000?$whiteLabelId=megathek&%24theme=hdr&%24resolution=webClient1280&%24cid=8TBRGG8HcdgKubRt5Jxoq5iEoi5DY1oR&%24redirect=false&%24hideAdult=true'
+        response = s.get(url)
+
+        details = json.loads(response.text)
+
+        trailerInfo = details['content']['contentInformation']['trailers'][0]['href']
+
+        # get trailer info
+        response = s.get(trailerInfo)
+        tailerDetails = json.loads(response.text)
+
+        # get playlist
+        playlist =  tailerDetails['content']['feature']['representations'][0]['contentPackages'][0]['media']['href']
+        response = s.get(playlist)
+
+        pattern = '<media.*?src="(.*?)"'
+        m = re.search(pattern,response.text)
+        if m is not None:
+            # play
+            url = m.group(1)
+
+            is_helper = inputstreamhelper.Helper(PROTOCOL, drm=DRM)
+
+            if is_helper.check_inputstream():
+                playitem = xbmcgui.ListItem(path=url)
+                playitem.setProperty('inputstreamaddon', is_helper.inputstream_addon)
+                playitem.setProperty('inputstream.adaptive.manifest_type', PROTOCOL)
+
+                xbmc.Player().play(item=url, listitem=playitem)
+
 if __name__ == '__main__':
 
     ADDON = xbmcaddon.Addon()
@@ -238,8 +313,10 @@ if __name__ == '__main__':
         mode = PARAMS['mode'][0]
         if mode == 'start':
             showChannels()
-        if mode == 'tv':
+        elif mode == 'tv':
             showTV()
+        elif mode == 'trailer':
+            showTrailer()
         else:
             mainSelector()
     else:
