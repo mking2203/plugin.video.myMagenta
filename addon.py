@@ -39,6 +39,9 @@ def mainSelector():
     li = xbmcgui.ListItem(label='Trailer Saphirblau', thumbnailImage='DefaultFolder.png')
     xbmcplugin.addDirectoryItem(HANDLE, PATH + '?mode=trailer', li, True)
 
+    li = xbmcgui.ListItem(label='Film Saphirblau', thumbnailImage='DefaultFolder.png')
+    xbmcplugin.addDirectoryItem(HANDLE, PATH + '?mode=movie', li, True)
+
     xbmcplugin.endOfDirectory(HANDLE, cacheToDisc=False)
 
 def showChannels():
@@ -301,6 +304,118 @@ def showTrailer():
 
                 xbmc.Player().play(item=url, listitem=playitem)
 
+def showMovie():
+
+    page = 'https://web.magentatv.de/EPG/JSON/Login?&T=Windows_firefox_67'
+    data = {
+            "userId": "Guest" ,
+            "mac" :"00:00:00:00:00:00"
+            }
+
+    payload = json.dumps(data)
+
+    s = requests.Session()
+    response = s.post(page, params = payload)
+
+    headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:67.0) Gecko/20100101 Firefox/67.0',
+    'Accept': 'application/json, text/javascript, */*; q=0.01',
+    'Accept-Language': 'de,en-US;q=0.7,en;q=0.3',
+    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+    'X-Requested-With': 'XMLHttpRequest',
+    'Connection': 'keep-alive',
+    'Referer': 'https://web.magentatv.de/EPG/' }
+
+    uid = uuid.uuid4().hex
+
+    data = {
+        "terminalid":"00:00:00:00:00:00",
+        "mac":"00:00:00:00:00:00",
+        "terminaltype":"WEBTV",
+        "utcEnable":1,
+        "timezone":"Africa/Ceuta",
+        "userType":3,
+        "terminalvendor":"Unknown",
+        "preSharedKeyID":"PC01P00002",
+        "cnonce": uid,
+        "areaid":"1",
+        "templatename":"NGTV",
+        "usergroup":"-1",
+        "subnetId":"4901" }
+
+    payload = json.dumps(data)
+
+    s = requests.Session()
+    response = s.post('https://web.magentatv.de/EPG/JSON/Authenticate?SID=firstup&T=Windows_firefox_67', headers = headers, data=payload)
+
+    if (response.status_code == 200):
+
+        token = s.cookies['CSRFSESSION']
+
+        url = 'https://wcss.t-online.de/cvss/IPTV2015%40Mobile/vodclient/v1/assetdetails/44593/GN_MV007404670000?$whiteLabelId=megathek&%24theme=hdr&%24resolution=webClient1280&%24cid=8TBRGG8HcdgKubRt5Jxoq5iEoi5DY1oR&%24redirect=false&%24hideAdult=true'
+        response = s.get(url)
+
+        details = json.loads(response.text)
+
+        #print details['content']['partnerInformation'][0]['features'][0]['player']['href']
+        movie = details['content']['partnerInformation'][0]['features'][0]['player']['href']
+
+        # user data
+        username = xbmcplugin.getSetting(HANDLE, 'email')
+        password = xbmcplugin.getSetting(HANDLE, 'pass')
+
+        oauth_url = 'https://accounts.login.idm.telekom.com/oauth2/tokens'
+        data = { "client_id": "10LIVESAM30000004901NGTV0000000000000000",
+                "grant_type": "password",
+                "scope": "ngtvvod",
+                "username": username,
+                "password": password,
+                "client_secret" : '21EAB062-C4EE-489C-BC80-6A65397F3F96' }
+
+        resp = s.post(oauth_url, params = data)
+        j = json.loads(resp.text)
+        token2 = j ["access_token"]
+
+        # 08-11-96-9E-3E-2C
+        token1 = 'EKCTJG7uiOtFnrjL4LSdr2_fAAEEYAAAAWsXwLeOAAABcm9x444BGggAAAFrF8C3jpSLm3ZrFm4_exzqTAYWNh8iFJkX3mayqVDGQXbOrL8nDtj-D2gUE7yCkrxz7te5OuYBQrwFXf0O7ubmuNOfGkv5RYQP0tarSBm9tS8DWWOp7B6soy3LenRdm9JkjJBj5vLLmGfYX9skg21kwV5JSviHT3udaoZyom2EhSSreAmuDYckRRJ5UgoZgwbjack1F0tVpqrq8s5zg8IXnowUptPZh1-I6yKxGq8fL1f11ZB4bnhjjx0QOmkbO6ICvCgnB_8RDqxER25A4Gp0lHzqYOX00DBw4GD6_y2w2HtJI_cC6WsGR86tuXD_raoDuOqazzmQqGHCg374T5L_H2gGka3FwTzcttc216mEEMItIn2bbuIP6Q=='
+
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:67.0) Gecko/20100101 Firefox/67.0',
+            'Accept': 'application/json, text/javascript, */*; q=0.01',
+            'Accept-Language': 'de,en-US;q=0.7,en;q=0.3',
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+            'X-Requested-With': 'XMLHttpRequest',
+            'Connection': 'keep-alive',
+            'Referer': 'https://web.magentatv.de/EPG/',
+            'Authorization' : 'TAuth realm=\"ngtvvod\",tauth_token=\"' + token2 + '\"',
+            'X-Device-Authorization' : 'TAuth realm=\"device\",device_token=\"' + token1 + '\"' }
+
+
+        response = s.get(movie, headers=headers)
+
+        mov = json.loads(response.text)
+        url = mov ['content']['feature']['representations'][0]['contentPackages'][0]['media']['href']
+
+        # get playlist
+        response = s.get(url, headers = headers)
+        pattern = '<media.*?src="(.*?)"'
+        m = re.search(pattern,response.text)
+
+        if m is not None:
+            # play
+            url = m.group(1)
+            url = url + '|Authorization=' + urllib.quote_plus('TAuth realm=\"ngtvvod\",tauth_token=\"' + token2 + '\"')
+            url = url + '&X-Device-Authorization=' + urllib.quote_plus('TAuth realm=\"device\",device_token=\"' + token1 + '\"')
+
+            is_helper = inputstreamhelper.Helper(PROTOCOL, drm=DRM)
+
+            if is_helper.check_inputstream():
+                playitem = xbmcgui.ListItem(path=url)
+                playitem.setProperty('inputstreamaddon', is_helper.inputstream_addon)
+                playitem.setProperty('inputstream.adaptive.manifest_type', PROTOCOL)
+
+                xbmc.Player().play(item=url, listitem=playitem)
+
 if __name__ == '__main__':
 
     ADDON = xbmcaddon.Addon()
@@ -317,6 +432,8 @@ if __name__ == '__main__':
             showTV()
         elif mode == 'trailer':
             showTrailer()
+        elif mode == 'movie':
+            showMovie()
         else:
             mainSelector()
     else:
