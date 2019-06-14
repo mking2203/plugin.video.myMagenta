@@ -26,395 +26,407 @@ import inputstreamhelper
 PROTOCOL = 'ism'
 DRM = 'com.widevine.alpha'
 
-def mainSelector():
+class anyItem:
+    ID = ''
+    title = ''
+    orgTitle =''
+    description = ''
+    meta = ''
+    thumb =''
+    href = ''
 
-    xbmcplugin.setContent(HANDLE, 'files')
+class contentInformation(object):
 
-    li = xbmcgui.ListItem(label='Startseite', thumbnailImage='DefaultFolder.png')
-    xbmcplugin.addDirectoryItem(HANDLE, PATH + '?mode=start', li, True)
+    def __init__(self, data):
+        self.jData = data
 
-    li = xbmcgui.ListItem(label='TV', thumbnailImage='DefaultFolder.png')
-    xbmcplugin.addDirectoryItem(HANDLE, PATH + '?mode=tv', li, True)
+    def getID(self):
+        if 'id' in self.jData:
+            return self.jData['id']
+        else:
+            return ''
 
-    li = xbmcgui.ListItem(label='Trailer Saphirblau', thumbnailImage='DefaultFolder.png')
-    xbmcplugin.addDirectoryItem(HANDLE, PATH + '?mode=trailer', li, True)
+    def getTitle(self):
+        if 'title' in self.jData:
+            return self.jData['title']
+        else:
+            return 'no title'
 
-    li = xbmcgui.ListItem(label='Film Saphirblau', thumbnailImage='DefaultFolder.png')
-    xbmcplugin.addDirectoryItem(HANDLE, PATH + '?mode=movie', li, True)
+    def getOrgignalTitle(self):
+        if 'orgTitle' in self.jData:
+            return self.jData['orgTitle']
+        else:
+            return ''
 
-    xbmcplugin.endOfDirectory(HANDLE, cacheToDisc=False)
+    def getDescription(self):
+        if 'description' in self.jData:
+            return self.jData['description']
+        else:
+            return 'no description'
 
-def showChannels():
+    def getMetaData(self):
+        if 'metaData' in self.jData:
+            return self.jData['metaData']
+        else:
+            return ''
 
-    xbmcplugin.setContent(HANDLE, 'episodes')
+    def getImages(self):
+        if 'images' in self.jData:
+            return self.jData['images']
+        else:
+            return []
 
-    # login to page
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:67.0) Gecko/20100101 Firefox/67.0',
-        'Accept': 'application/json, text/javascript, */*; q=0.01',
-        'Accept-Language': 'de,en-US;q=0.7,en;q=0.3',
-        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-        'X-Requested-With': 'XMLHttpRequest',
-        'Connection': 'keep-alive',
-        'Referer': 'https://web.magentatv.de/EPG/' }
+    def getDetailPage(self):
+        if 'detailPage' in self.jData:
+            return self.jData['detailPage']['href']
+        else:
+            return ''
 
-    uid = uuid.uuid4().hex
+    def getAssetOrdinal(self):
+        if 'assetOrdinal' in self.jData:
+            return self.jData['assetOrdinal']
+        else:
+            return 0
 
-    data = {
-        "terminalid":"00:00:00:00:00:00",
-        "mac":"00:00:00:00:00:00",
-        "terminaltype":"WEBTV",
-        "utcEnable":1,
-        "timezone":"Africa/Ceuta",
-        "userType":3,
-        "terminalvendor":"Unknown",
-        "preSharedKeyID":"PC01P00002",
-        "cnonce": uid,
-        "areaid":"1",
-        "templatename":"NGTV",
-        "usergroup":"-1",
-        "subnetId":"4901" }
+class  myMagenta(object):
 
-    payload = json.dumps(data)
+    def addHeading(self, title):
 
-    s = requests.Session()
-    response = s.post('https://web.magentatv.de/EPG/JSON/Authenticate?SID=firstup&T=Windows_firefox_67', headers = headers, data=payload)
+        li = xbmcgui.ListItem("[COLOR gold]" + title + "[/COLOR]")
+        li.setProperty("IsPlayable", "false")
+        xbmcplugin.addDirectoryItem(handle=HANDLE, url='', listitem=li)
 
-    if (response.status_code == 200):
+    def addHeading2(self, title):
 
-        # token has been received
-        token = s.cookies['CSRFSESSION']
-        tm = int(time.time())
+        li = xbmcgui.ListItem("[COLOR silver]" + title + "[/COLOR]")
+        li.setProperty("IsPlayable", "false")
+        xbmcplugin.addDirectoryItem(handle=HANDLE, url='', listitem=li)
 
-        # startseite
-        page = 'https://web.magentatv.de/EPG/rest/hub/79983?tm=' + str(tm)
+    def addSelector(self, item):
 
-        response = s.get(page, headers = headers)
-        if (response.status_code == 200):
+        url = PATH + '?nav=' + item.href
+        li = xbmcgui.ListItem(label=item.title, thumbnailImage=item.thumb)
+        li.setInfo('video', { 'plot': item.description })
+        xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
 
-            j = json.loads(response.text)
+    def addMovie(self, item):
 
-            for item in j ['groups']:
+        url = PATH + '?nav=' + item.href
+        li = xbmcgui.ListItem(label=item.title, thumbnailImage=item.thumb)
+        li.setInfo('video', { 'plot': item.description })
+        xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
 
-                section = item['title']
-                li = xbmcgui.ListItem("[COLOR gold]" + section + "[/COLOR]")
-                li.setProperty("IsPlayable", "false")
-                xbmcplugin.addDirectoryItem(handle=HANDLE, url="", listitem=li)
+    def showMenu(self):
 
-                for t in item ['tiles']:
+        xbmcplugin.setContent(HANDLE, 'files')
 
-                    title= t['formattedContent']['title']
-                    shortName = ''
-                    thumb = ''
+        s = requests.Session()
 
-                    url = ''
+        page = 'https://web.magentatv.de/EPG/JSON/Login?&T=Windows_firefox_67'
+        data = { "userId": "Guest" ,
+                 "mac" :"00:00:00:00:00:00" }
 
-                    if 'shortName' in t['formattedContent']:
-                        shortName = t['formattedContent']['shortName']
-                    if 'backgroundUrl' in t['formattedContent']:
-                        thumb = t['formattedContent']['backgroundUrl']
-
-                    desc = title + '\n' + shortName
-
-                    li = xbmcgui.ListItem(label=title, thumbnailImage=thumb)
-                    li.setInfo('video', { 'plot': desc })
-
-                    xbmcplugin.addDirectoryItem(HANDLE, url, li, False)
-
-
-        xbmcplugin.endOfDirectory(HANDLE, cacheToDisc=False)
-
-def showTV():
-
-    xbmcplugin.setContent(HANDLE, 'episodes')
-
-    # login to page
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:67.0) Gecko/20100101 Firefox/67.0',
-        'Accept': 'application/json, text/javascript, */*; q=0.01',
-        'Accept-Language': 'de,en-US;q=0.7,en;q=0.3',
-        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-        'X-Requested-With': 'XMLHttpRequest',
-        'Connection': 'keep-alive',
-        'Referer': 'https://web.magentatv.de/EPG/' }
-
-    uid = uuid.uuid4().hex
-
-    data = {
-        "terminalid":"00:00:00:00:00:00",
-        "mac":"00:00:00:00:00:00",
-        "terminaltype":"WEBTV",
-        "utcEnable":1,
-        "timezone":"Africa/Ceuta",
-        "userType":3,
-        "terminalvendor":"Unknown",
-        "preSharedKeyID":"PC01P00002",
-        "cnonce": uid,
-        "areaid":"1",
-        "templatename":"NGTV",
-        "usergroup":"-1",
-        "subnetId":"4901" }
-
-    payload = json.dumps(data)
-
-    s = requests.Session()
-    response = s.post('https://web.magentatv.de/EPG/JSON/Authenticate?SID=firstup&T=Windows_firefox_67', headers = headers, data=payload)
-
-    if (response.status_code == 200):
-
-        # token has been received
-        token = s.cookies['CSRFSESSION']
-        tm = int(time.time())
-
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:67.0) Gecko/20100101 Firefox/67.0',
-            'Accept': 'application/json, text/javascript, */*; q=0.01',
-            'Accept-Language': 'de,en-US;q=0.7,en;q=0.3',
-            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-            'X-Requested-With': 'XMLHttpRequest',
-            'Connection': 'keep-alive',
-            'Referer': 'https://web.magentatv.de/EPG/',
-            'X_CSRFToken': token }
-
-        # get all channels
-        page = 'https://web.magentatv.de/EPG/JSON/AllChannel?SID=first&T=Windows_firefox_67'
-
-        data = {"properties":[{"name":"logicalChannel","include":"/channellist/logicalChannel/contentId,/channellist/logicalChannel/type,/channellist/logicalChannel/name,/channellist/logicalChannel/chanNo,/channellist/logicalChannel/pictures/picture/imageType,/channellist/logicalChannel/pictures/picture/href,/channellist/logicalChannel/foreignsn,/channellist/logicalChannel/externalCode,/channellist/logicalChannel/sysChanNo,/channellist/logicalChannel/physicalChannels/physicalChannel/mediaId,/channellist/logicalChannel/physicalChannels/physicalChannel/fileFormat,/channellist/logicalChannel/physicalChannels/physicalChannel/definition"}],"metaDataVer":"Channel/1.1","channelNamespace":"2","filterlist":[{"key":"IsHide","value":"-1"}],"returnSatChannel":0}
         payload = json.dumps(data)
+        response = s.post(page, params = payload)
 
-        response = s.post(page, data=payload, headers = headers)
         if (response.status_code == 200):
 
-            channels = json.loads(response.text)
+            headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:67.0) Gecko/20100101 Firefox/67.0',
+                        'Accept': 'application/json, text/javascript, */*; q=0.01',
+                        'Accept-Language': 'de,en-US;q=0.7,en;q=0.3',
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Connection': 'keep-alive',
+                        'Referer': 'https://web.magentatv.de/EPG/' }
 
-            # we want +/- 5 h
-            tStart = datetime.now() - timedelta(hours=5)
-            tStop = datetime.now() + timedelta(hours=5)
+            uid = uuid.uuid4().hex
 
-            # get programm
-            page = 'https://web.magentatv.de/EPG/JSON/PlayBillList?userContentFilter=1992763264&sessionArea=1&SID=ottall&T=Windows_firefox_67'
+            data = { "terminalid":"00:00:00:00:00:00",
+                     "mac":"00:00:00:00:00:00",
+                     "terminaltype":"WEBTV",
+                     "utcEnable":1,
+                     "timezone":"Africa/Ceuta",
+                     "userType":3,
+                     "terminalvendor":"Unknown",
+                     "preSharedKeyID":"PC01P00002",
+                     "cnonce": uid,
+                     "areaid":"1",
+                     "templatename":"NGTV",
+                     "usergroup":"-1",
+                     "subnetId":"4901" }
 
-            data = {"type":2,"isFiltrate":0,"orderType":4,"isFillProgram":1,"channelNamespace":"3","offset":0,"count":-1,"properties":[{"name":"playbill","include":"subName,id,name,starttime,endtime,channelid,ratingid,seriesID,genres,relatedVodIds,tipType,externalIds"}],"endtime": tStop.strftime('%Y%m%d%H%M00'),"begintime": tStart.strftime('%Y%m%d%H%M00')}
             payload = json.dumps(data)
-
-            response = s.post(page, data=payload, headers = headers)
+            response = s.post('https://web.magentatv.de/EPG/JSON/Authenticate?SID=firstup&T=Windows_firefox_67', headers = headers, data=payload)
 
             if (response.status_code == 200):
 
-                playlist = json.loads(response.text)
-                actTime = datetime.now()
+                data = json.loads(response.text)
+                token = data ['csrfToken']
 
-                for item in playlist['playbilllist']:
+                headers = {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:67.0) Gecko/20100101 Firefox/67.0',
+                        'Accept': 'application/json, text/javascript, */*; q=0.01',
+                        'Accept-Language': 'de,en-US;q=0.7,en;q=0.3',
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Connection': 'keep-alive',
+                        'Referer': 'https://web.magentatv.de/EPG/' }
 
-                    startPlay = item ['starttime']
-                    startPlay = startPlay [:19]
-                    startDT = datetime.strptime(startPlay, '%Y-%m-%d %H:%M:%S')
+                data = {
+                    '%24WhiteLabelId':'OTT',
+                    '%24limitPrincipalCpl':'',
+                    '%24theme':'hdr',
+                    '%24resolution':'webClient1280',
+                    '%24cid': uid,
+                    '%24redirect':'false',
+                    '%24hideAdult':'true' }
 
-                    stopPlay = item ['endtime']
-                    stopPlay = stopPlay [:19]
-                    stopDT = datetime.strptime(stopPlay, '%Y-%m-%d %H:%M:%S')
+                page = 'https://wcss.t-online.de/cvss/IPTV2015%40Mobile/vodclient/v1/redirectdocumentgroup/TV_VOD_DG_SG_Mov'
+                response = s.get(page, headers = headers, params = data)
 
-                    # show actual programm
-                    if(startDT<=actTime) & (stopDT>actTime):
+                if (response.status_code == 200):
 
-                        title = item ['name']
-                        channelName = ''
+                    jObj = json.loads(response.text)
 
-                        channel = item ['channelid']
-                        for item in channels ['channellist']:
-                            if(item ['contentId'] == channel):
-                                channelName = item ['name']
+                    if '$type' in jObj:
+                        jType = jObj['$type']
 
-                        desc =  startPlay + ' - ' +  title
-                        url = ''
+                        if jType == 'structuredGrid':
+                            if 'menu' in jObj:
+                                for item in jObj['menu']:
+                                    if 'title' in item :
+                                        if 'screen' in item:
+                                            title =  item ['title']
+                                            href = item ['screen']['href']
 
-                        li = xbmcgui.ListItem(label=channelName, thumbnailImage='') # no thumb yet
-                        li.setInfo('video', { 'plot': desc })
+                                            url = PATH + '?nav=' + href
+                                            li = xbmcgui.ListItem(label=title)
+                                            xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
 
-                        xbmcplugin.addDirectoryItem(HANDLE, url, li, False)
-
-        xbmcplugin.addSortMethod(HANDLE, xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE)
         xbmcplugin.endOfDirectory(HANDLE, cacheToDisc=False)
 
-def showTrailer():
+    def navigate(self, href):
 
-    headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:67.0) Gecko/20100101 Firefox/67.0',
-    'Accept': 'application/json, text/javascript, */*; q=0.01',
-    'Accept-Language': 'de,en-US;q=0.7,en;q=0.3',
-    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-    'X-Requested-With': 'XMLHttpRequest',
-    'Connection': 'keep-alive',
-    'Referer': 'https://web.magentatv.de/EPG/' }
+        xbmcplugin.setContent(HANDLE, 'episodes')
 
-    uid = uuid.uuid4().hex
+        s = requests.Session()
 
-    data = {
-        "terminalid":"00:00:00:00:00:00",
-        "mac":"00:00:00:00:00:00",
-        "terminaltype":"WEBTV",
-        "utcEnable":1,
-        "timezone":"Africa/Ceuta",
-        "userType":3,
-        "terminalvendor":"Unknown",
-        "preSharedKeyID":"PC01P00002",
-        "cnonce": uid,
-        "areaid":"1",
-        "templatename":"NGTV",
-        "usergroup":"-1",
-        "subnetId":"4901" }
+        page = 'https://web.magentatv.de/EPG/JSON/Login?&T=Windows_firefox_67'
+        data = { "userId": "Guest" ,
+                 "mac" :"00:00:00:00:00:00" }
 
-    payload = json.dumps(data)
+        payload = json.dumps(data)
+        response = s.post(page, params = payload)
 
-    s = requests.Session()
-    response = s.post('https://web.magentatv.de/EPG/JSON/Authenticate?SID=firstup&T=Windows_firefox_67', headers = headers, data=payload)
+        if (response.status_code == 200):
 
-    if (response.status_code == 200):
+            headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:67.0) Gecko/20100101 Firefox/67.0',
+                        'Accept': 'application/json, text/javascript, */*; q=0.01',
+                        'Accept-Language': 'de,en-US;q=0.7,en;q=0.3',
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Connection': 'keep-alive',
+                        'Referer': 'https://web.magentatv.de/EPG/' }
 
-        token = s.cookies['CSRFSESSION']
+            uid = uuid.uuid4().hex
 
-        # get details of playlist
-        url = 'https://wcss.t-online.de/cvss/IPTV2015%40Mobile/vodclient/v1/assetdetails/44593/GN_MV007404670000?$whiteLabelId=megathek&%24theme=hdr&%24resolution=webClient1280&%24cid=8TBRGG8HcdgKubRt5Jxoq5iEoi5DY1oR&%24redirect=false&%24hideAdult=true'
-        response = s.get(url)
+            data = { "terminalid":"00:00:00:00:00:00",
+                     "mac":"00:00:00:00:00:00",
+                     "terminaltype":"WEBTV",
+                     "utcEnable":1,
+                     "timezone":"Africa/Ceuta",
+                     "userType":3,
+                     "terminalvendor":"Unknown",
+                     "preSharedKeyID":"PC01P00002",
+                     "cnonce": uid,
+                     "areaid":"1",
+                     "templatename":"NGTV",
+                     "usergroup":"-1",
+                     "subnetId":"4901" }
 
-        details = json.loads(response.text)
+            payload = json.dumps(data)
+            response = s.post('https://web.magentatv.de/EPG/JSON/Authenticate?SID=firstup&T=Windows_firefox_67', headers = headers, data=payload)
 
-        trailerInfo = details['content']['contentInformation']['trailers'][0]['href']
+            if (response.status_code == 200):
 
-        # get trailer info
-        response = s.get(trailerInfo)
-        tailerDetails = json.loads(response.text)
+                data = json.loads(response.text)
+                token = data ['csrfToken']
 
-        # get playlist
-        playlist =  tailerDetails['content']['feature']['representations'][0]['contentPackages'][0]['media']['href']
-        response = s.get(playlist)
+                headers = {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:67.0) Gecko/20100101 Firefox/67.0',
+                        'Accept': 'application/json, text/javascript, */*; q=0.01',
+                        'Accept-Language': 'de,en-US;q=0.7,en;q=0.3',
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Connection': 'keep-alive',
+                        'Referer': 'https://web.magentatv.de/EPG/' }
 
-        pattern = '<media.*?src="(.*?)"'
-        m = re.search(pattern,response.text)
-        if m is not None:
-            # play
-            url = m.group(1)
+                data = {
+                    '%24WhiteLabelId':'OTT',
+                    '%24limitPrincipalCpl':'',
+                    '%24theme':'hdr',
+                    '%24resolution':'webClient1280',
+                    '%24cid': uid,
+                    '%24redirect':'false',
+                    '%24hideAdult':'true' }
 
-            is_helper = inputstreamhelper.Helper(PROTOCOL, drm=DRM)
+                response = s.get(href, headers = headers, params = data)
 
-            if is_helper.check_inputstream():
-                playitem = xbmcgui.ListItem(path=url)
-                playitem.setProperty('inputstreamaddon', is_helper.inputstream_addon)
-                playitem.setProperty('inputstream.adaptive.manifest_type', PROTOCOL)
+                if (response.status_code == 200):
 
-                xbmc.Player().play(item=url, listitem=playitem)
+                    jObj = json.loads(response.text)
 
-def showMovie():
+                    if '$type' in jObj:
+                        jType = jObj['$type']
 
-    page = 'https://web.magentatv.de/EPG/JSON/Login?&T=Windows_firefox_67'
-    data = {
-            "userId": "Guest" ,
-            "mac" :"00:00:00:00:00:00"
-            }
+                        if jType == 'structuredGrid':
+                            if 'content' in jObj:
 
-    payload = json.dumps(data)
+                                if 'header' in jObj ['content']:
+                                    title = jObj ['content']['header']['title']
+                                    self.addHeading(title)
 
-    s = requests.Session()
-    response = s.post(page, params = payload)
+                                for group in jObj['content']['groups']:
+                                    groupType = group ['groupType']
+                                    self.addHeading2('Gruppe')
 
-    headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:67.0) Gecko/20100101 Firefox/67.0',
-    'Accept': 'application/json, text/javascript, */*; q=0.01',
-    'Accept-Language': 'de,en-US;q=0.7,en;q=0.3',
-    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-    'X-Requested-With': 'XMLHttpRequest',
-    'Connection': 'keep-alive',
-    'Referer': 'https://web.magentatv.de/EPG/' }
+                                    if 'showAll' in group:
+                                        sItem = anyItem()
+                                        sItem.title = 'alle anzeigen'
+                                        sItem.href = group ['showAll']['href']
+                                        self.addSelector(sItem)
 
-    uid = uuid.uuid4().hex
+                                    if groupType == 'assetList':
+                                        for item in group ['items']:
 
-    data = {
-        "terminalid":"00:00:00:00:00:00",
-        "mac":"00:00:00:00:00:00",
-        "terminaltype":"WEBTV",
-        "utcEnable":1,
-        "timezone":"Africa/Ceuta",
-        "userType":3,
-        "terminalvendor":"Unknown",
-        "preSharedKeyID":"PC01P00002",
-        "cnonce": uid,
-        "areaid":"1",
-        "templatename":"NGTV",
-        "usergroup":"-1",
-        "subnetId":"4901" }
+                                            iType = item ['assetDetails']['type']
+                                            if iType == 'Movie' or 'Season':
+                                                c = contentInformation(item['assetDetails']['contentInformation'])
 
-    payload = json.dumps(data)
+                                                mItem = anyItem()
+                                                mItem.title = c.getTitle()
+                                                mItem.orgTitle = c.getOrgignalTitle()
+                                                mItem.description = c.getDescription()
+                                                mItem.ID = c.getID()
+                                                mItem.href = c.getDetailPage()
 
-    s = requests.Session()
-    response = s.post('https://web.magentatv.de/EPG/JSON/Authenticate?SID=firstup&T=Windows_firefox_67', headers = headers, data=payload)
+                                                images = c.getImages()
+                                                for image in images:
+                                                    iType = image ['imageType']
+                                                    if(iType == '5x7 big' or mItem.thumb == ''):
+                                                        mItem.thumb = image ['href']
 
-    if (response.status_code == 200):
+                                                self.addMovie(mItem)
 
-        token = s.cookies['CSRFSESSION']
+                                    if groupType == 'smallTeaser' or groupType == 'bigTeaser':
+                                        for item in group ['items']:
+                                            details = item ['teaser']
 
-        url = 'https://wcss.t-online.de/cvss/IPTV2015%40Mobile/vodclient/v1/assetdetails/44593/GN_MV007404670000?$whiteLabelId=megathek&%24theme=hdr&%24resolution=webClient1280&%24cid=8TBRGG8HcdgKubRt5Jxoq5iEoi5DY1oR&%24redirect=false&%24hideAdult=true'
-        response = s.get(url)
+                                            if 'title' in details:
+                                                tItem = anyItem()
+                                                tItem.title = details ['title']
+                                                tItem.meta = details ['metaData']
+                                                if 'images' in details:
+                                                    for image in details['images']:
+                                                        name = image
+                                                        if name == 'bigImage' or tItem.thumb =='':
+                                                            tItem.thumb = details['images'][name]['href']
 
-        details = json.loads(response.text)
+                                                tItem.href = details ['target']['href']
+                                                self.addSelector(tItem)
 
-        #print details['content']['partnerInformation'][0]['features'][0]['player']['href']
-        movie = details['content']['partnerInformation'][0]['features'][0]['player']['href']
+                        if jType == 'labelpartnerList':
+                            items = jObj['content']['items']
 
-        # user data
-        username = xbmcplugin.getSetting(HANDLE, 'email')
-        password = xbmcplugin.getSetting(HANDLE, 'pass')
+                            for item in items:
 
-        oauth_url = 'https://accounts.login.idm.telekom.com/oauth2/tokens'
-        data = { "client_id": "10LIVESAM30000004901NGTV0000000000000000",
-                "grant_type": "password",
-                "scope": "ngtvvod",
-                "username": username,
-                "password": password,
-                "client_secret" : '21EAB062-C4EE-489C-BC80-6A65397F3F96' }
+                                sItem = anyItem()
+                                sItem.title = item['name']
+                                sItem.description = sItem.title
+                                sItem.thumb = item['image']['href']
+                                sItem.href = item['target']['href']
+                                self.addSelector(sItem)
 
-        resp = s.post(oauth_url, params = data)
-        j = json.loads(resp.text)
-        token2 = j ["access_token"]
+                        if jType == 'topten':
+                            items = jObj['content']['items']
 
-        # 08-11-96-9E-3E-2C
-        token1 = 'EKCTJG7uiOtFnrjL4LSdr2_fAAEEYAAAAWsXwLeOAAABcm9x444BGggAAAFrF8C3jpSLm3ZrFm4_exzqTAYWNh8iFJkX3mayqVDGQXbOrL8nDtj-D2gUE7yCkrxz7te5OuYBQrwFXf0O7ubmuNOfGkv5RYQP0tarSBm9tS8DWWOp7B6soy3LenRdm9JkjJBj5vLLmGfYX9skg21kwV5JSviHT3udaoZyom2EhSSreAmuDYckRRJ5UgoZgwbjack1F0tVpqrq8s5zg8IXnowUptPZh1-I6yKxGq8fL1f11ZB4bnhjjx0QOmkbO6ICvCgnB_8RDqxER25A4Gp0lHzqYOX00DBw4GD6_y2w2HtJI_cC6WsGR86tuXD_raoDuOqazzmQqGHCg374T5L_H2gGka3FwTzcttc216mEEMItIn2bbuIP6Q=='
+                            for item in items:
 
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:67.0) Gecko/20100101 Firefox/67.0',
-            'Accept': 'application/json, text/javascript, */*; q=0.01',
-            'Accept-Language': 'de,en-US;q=0.7,en;q=0.3',
-            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-            'X-Requested-With': 'XMLHttpRequest',
-            'Connection': 'keep-alive',
-            'Referer': 'https://web.magentatv.de/EPG/',
-            'Authorization' : 'TAuth realm=\"ngtvvod\",tauth_token=\"' + token2 + '\"',
-            'X-Device-Authorization' : 'TAuth realm=\"device\",device_token=\"' + token1 + '\"' }
+                                c = contentInformation(item['assetDetails']['contentInformation'])
+
+                                mItem = anyItem()
+                                mItem.title = c.getTitle()
+                                mItem.orgTitle = c.getOrgignalTitle()
+                                mItem.description = c.getDescription()
+                                mItem.ID = c.getID()
+                                mItem.href = c.getDetailPage()
+
+                                images = c.getImages()
+                                for image in images:
+                                    iType = image ['imageType']
+                                    if(iType == '5x7 big' or mItem.thumb == ''):
+                                        mItem.thumb = image ['href']
+
+                                self.addMovie(mItem)
+
+                        if jType == 'assetdetails':
+
+                            if 'content' in jObj:
+
+                                c = contentInformation(jObj['content']['contentInformation'])
+
+                                title = c.getTitle()
+                                desc = c.getDescription()
+
+                                thumb = ''
+                                images = c.getImages()
+
+                                for image in images:
+                                    iType = image ['imageType']
+                                    if(iType == '5x7 big' or thumb == ''):
+                                        thumb = image ['href']
+
+                                assetType = jObj ['content']['type']
+
+                                if  assetType == 'Episode':
+                                    mItem = anyItem()
+                                    mItem.title = title
+                                    mItem.description = desc
+                                    mItem.thumb = thumb
+                                    self.addMovie(mItem)
+
+                                # SUB CONTENT follows
+                                if  assetType == 'Series' or assetType == 'Season':
+                                    self.addHeading(title)
+
+                                if 'multiAssetInformation' in jObj['content']:
+                                    subs = jObj['content']['multiAssetInformation']['subAssetDetails']
+                                    for sub in subs:
+
+                                        c = contentInformation(sub['contentInformation'])
+                                        sType = sub['type']
+
+                                        if sType == 'Season':
+                                            sItem = anyItem()
+                                            sItem.title = c.getTitle()
+                                            sItem.thumb = thumb
+                                            sItem.href = c.getDetailPage()
+                                            self.addSelector(sItem)
+
+                                        if sType == 'Episode':
+
+                                            episode = c.getAssetOrdinal()
+
+                                            sItem = anyItem()
+                                            sItem.title = title + ' Folge ' + str(episode) + ' - '+ c.getTitle()
+                                            sItem.meta = c.getDescription()
+                                            sItem.thumb = thumb
+                                            sItem.href = c.getDetailPage()
+                                            self.addSelector(sItem)
+
+        xbmcplugin.endOfDirectory(HANDLE, cacheToDisc=False)
 
 
-        response = s.get(movie, headers=headers)
-
-        mov = json.loads(response.text)
-        url = mov ['content']['feature']['representations'][0]['contentPackages'][0]['media']['href']
-
-        # get playlist
-        response = s.get(url, headers = headers)
-        pattern = '<media.*?src="(.*?)"'
-        m = re.search(pattern,response.text)
-
-        if m is not None:
-            # play
-            url = m.group(1)
-            url = url + '|Authorization=' + urllib.quote_plus('TAuth realm=\"ngtvvod\",tauth_token=\"' + token2 + '\"')
-            url = url + '&X-Device-Authorization=' + urllib.quote_plus('TAuth realm=\"device\",device_token=\"' + token1 + '\"')
-
-            is_helper = inputstreamhelper.Helper(PROTOCOL, drm=DRM)
-
-            if is_helper.check_inputstream():
-                playitem = xbmcgui.ListItem(path=url)
-                playitem.setProperty('inputstreamaddon', is_helper.inputstream_addon)
-                playitem.setProperty('inputstream.adaptive.manifest_type', PROTOCOL)
-
-                xbmc.Player().play(item=url, listitem=playitem)
 
 if __name__ == '__main__':
 
@@ -424,20 +436,16 @@ if __name__ == '__main__':
     HANDLE = int(sys.argv[1])
     PARAMS = urlparse.parse_qs(sys.argv[2][1:])
 
+    magenta = myMagenta()
+
     if PARAMS.has_key('mode'):
         mode = PARAMS['mode'][0]
-        if mode == 'start':
-            showChannels()
-        elif mode == 'tv':
-            showTV()
-        elif mode == 'trailer':
-            showTrailer()
-        elif mode == 'movie':
-            showMovie()
-        else:
-            mainSelector()
+        magenta.showMenu()
+
+    elif PARAMS.has_key('nav'):
+            magenta.navigate(PARAMS['nav'][0])
     else:
-        mainSelector()
+        magenta.showMenu()
 
 
 

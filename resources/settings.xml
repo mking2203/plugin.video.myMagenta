@@ -3,5 +3,7 @@
   <category label="Login">
     <setting id="email" type="text" label="E-Mail" />
     <setting id="pass" type="text" label="Password" option="hidden" />
+   <setting type="sep" />
+    <setting id="debug" type="bool" label="Debug" default="false"/>
   </category>
 </settings>
