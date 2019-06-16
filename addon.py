@@ -181,7 +181,7 @@ class  myMagenta(object):
                     '%24redirect':'false',
                     '%24hideAdult':'true' }
 
-                page = 'https://wcss.t-online.de/cvss/IPTV2015%40Mobile/vodclient/v1/redirectdocumentgroup/TV_VOD_DG_SG_Mov'
+                page = 'https://wcss.t-online.de/cvss/IPTV2015@First/vodclient/v1/redirectdocumentgroup/TV_VOD_DG_SG_Mov' # homeurl from manifest
                 response = s.get(page, headers = headers, params = data)
 
                 if (response.status_code == 200):
@@ -441,7 +441,6 @@ if __name__ == '__main__':
     if PARAMS.has_key('mode'):
         mode = PARAMS['mode'][0]
         magenta.showMenu()
-
     elif PARAMS.has_key('nav'):
             magenta.navigate(PARAMS['nav'][0])
     else:
