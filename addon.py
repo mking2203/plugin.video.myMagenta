@@ -127,9 +127,10 @@ class  myMagenta(object):
                  "mac" :"00:00:00:00:00:00" }
 
         payload = json.dumps(data)
-        response = s.post(page, params = payload)
+        #response = s.post(page, params = payload)
 
-        if (response.status_code == 200):
+        #if (response.status_code == 200):
+        if (True):
 
             headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:67.0) Gecko/20100101 Firefox/67.0',
                         'Accept': 'application/json, text/javascript, */*; q=0.01',
@@ -155,13 +156,14 @@ class  myMagenta(object):
                      "usergroup":"-1",
                      "subnetId":"4901" }
 
-            payload = json.dumps(data)
-            response = s.post('https://web.magentatv.de/EPG/JSON/Authenticate?SID=firstup&T=Windows_firefox_67', headers = headers, data=payload)
+            #payload = json.dumps(data)
+            #response = s.post('https://web.magentatv.de/EPG/JSON/Authenticate?SID=firstup&T=Windows_firefox_67', headers = headers, data=payload)
 
-            if (response.status_code == 200):
+            #if (response.status_code == 200):
+            if (True):
 
-                data = json.loads(response.text)
-                token = data ['csrfToken']
+                #data = json.loads(response.text)
+                #token = data ['csrfToken']
 
                 headers = {
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:67.0) Gecko/20100101 Firefox/67.0',
@@ -182,7 +184,7 @@ class  myMagenta(object):
                     '%24hideAdult':'true' }
 
                 page = 'https://wcss.t-online.de/cvss/IPTV2015@First/vodclient/v1/redirectdocumentgroup/TV_VOD_DG_SG_Mov' # homeurl from manifest
-                response = s.get(page, headers = headers, params = data)
+                response = s.get(page, headers = headers)# , params = data)
 
                 if (response.status_code == 200):
 
@@ -196,12 +198,21 @@ class  myMagenta(object):
                                 for item in jObj['menu']:
                                     if 'title' in item :
                                         if 'screen' in item:
-                                            title =  item ['title']
-                                            href = item ['screen']['href']
 
-                                            url = PATH + '?nav=' + href
-                                            li = xbmcgui.ListItem(label=title)
-                                            xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
+                                            locked = True
+                                            if 'isLocked' in item:
+                                                if item ['isLocked'] == 'false':
+                                                    locked = False
+                                            if xbmcplugin.getSetting(HANDLE, 'FSK18') == 'true':
+                                                locked = False
+
+                                            if not locked:
+                                                title =  item ['title']
+                                                href = item ['screen']['href']
+
+                                                url = PATH + '?nav=' + href
+                                                li = xbmcgui.ListItem(label=title)
+                                                xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
 
         xbmcplugin.endOfDirectory(HANDLE, cacheToDisc=False)
 
