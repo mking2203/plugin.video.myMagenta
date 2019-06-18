@@ -88,6 +88,12 @@ class contentInformation(object):
         else:
             return 0
 
+    def getTrailer(self):
+        if 'trailers' in self.jData:
+            return self.jData['trailers'][0]['href']
+        else:
+            return None
+
 class  myMagenta(object):
 
     def addHeading(self, title):
@@ -116,9 +122,27 @@ class  myMagenta(object):
         li.setInfo('video', { 'plot': item.description })
         xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
 
+    def addDetails(self, item):
+
+        url = PATH + '?content=show'
+        li = xbmcgui.ListItem(label='Details', thumbnailImage=item.thumb)
+        li.setInfo('video', { 'plot': item.description })
+        xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
+
+    def addTrailer(self, item):
+
+        url = PATH + '?trailer=' + item.href
+        li = xbmcgui.ListItem(label='Trailer', thumbnailImage=item.thumb)
+        li.setInfo('video', { 'plot': item.description })
+        xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
+
     def showMenu(self):
 
         xbmcplugin.setContent(HANDLE, 'files')
+
+        url = PATH + '?content=show'
+        li = xbmcgui.ListItem(label='Content')
+        xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
 
         s = requests.Session()
 
@@ -388,12 +412,22 @@ class  myMagenta(object):
 
                                 assetType = jObj ['content']['type']
 
-                                if  assetType == 'Episode':
+                                if  assetType == 'Episode' or assetType == 'Movie':
+
                                     mItem = anyItem()
                                     mItem.title = title
                                     mItem.description = desc
                                     mItem.thumb = thumb
-                                    self.addMovie(mItem)
+                                    self.addDetails(mItem)
+
+                                    if c.getTrailer():
+
+                                        mItem = anyItem()
+                                        mItem.title = title
+                                        mItem.description = desc
+                                        mItem.thumb = thumb
+                                        mItem.href = c.getTrailer()
+                                        self.addTrailer(mItem)
 
                                 # SUB CONTENT follows
                                 if  assetType == 'Series' or assetType == 'Season':
@@ -426,6 +460,76 @@ class  myMagenta(object):
 
         xbmcplugin.endOfDirectory(HANDLE, cacheToDisc=False)
 
+    def showTrailer(self, href):
+
+        s = requests.Session()
+
+        page = 'https://web.magentatv.de/EPG/JSON/Login?&T=Windows_firefox_67'
+        data = { "userId": "Guest" ,
+                 "mac" :"00:00:00:00:00:00" }
+
+        payload = json.dumps(data)
+        response = s.post(page, params = payload)
+
+        if (response.status_code == 200):
+
+            headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:67.0) Gecko/20100101 Firefox/67.0',
+                        'Accept': 'application/json, text/javascript, */*; q=0.01',
+                        'Accept-Language': 'de,en-US;q=0.7,en;q=0.3',
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Connection': 'keep-alive',
+                        'Referer': 'https://web.magentatv.de/EPG/' }
+
+            uid = uuid.uuid4().hex
+
+            data = { "terminalid":"00:00:00:00:00:00",
+                     "mac":"00:00:00:00:00:00",
+                     "terminaltype":"WEBTV",
+                     "utcEnable":1,
+                     "timezone":"Africa/Ceuta",
+                     "userType":3,
+                     "terminalvendor":"Unknown",
+                     "preSharedKeyID":"PC01P00002",
+                     "cnonce": uid,
+                     "areaid":"1",
+                     "templatename":"NGTV",
+                     "usergroup":"-1",
+                     "subnetId":"4901" }
+
+            payload = json.dumps(data)
+            response = s.post('https://web.magentatv.de/EPG/JSON/Authenticate?SID=firstup&T=Windows_firefox_67', headers = headers, data=payload)
+
+            if (response.status_code == 200):
+
+                data = json.loads(response.text)
+                token = data ['csrfToken']
+
+                response = s.get(href)
+                trailerDetails = json.loads(response.text)
+
+                print 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+                print trailerDetails
+
+                # get playlist
+                playlist =  trailerDetails['content']['feature']['representations'][1]['contentPackages'][0]['media']['href']
+                response = s.get(playlist)
+
+                pattern = '<media.*?src="(.*?)"'
+                m = re.search(pattern,response.text)
+                if m is not None:
+                    # play
+                    url = m.group(1)
+
+                    is_helper = inputstreamhelper.Helper(PROTOCOL, drm=DRM)
+
+                    if is_helper.check_inputstream():
+                        playitem = xbmcgui.ListItem(path=url)
+                        playitem.setProperty('inputstreamaddon', is_helper.inputstream_addon)
+                        playitem.setProperty('inputstream.adaptive.manifest_type', PROTOCOL)
+
+                        xbmc.Player().play(item=url, listitem=playitem)
+
 
 
 if __name__ == '__main__':
@@ -443,6 +547,10 @@ if __name__ == '__main__':
         magenta.showMenu()
     elif PARAMS.has_key('nav'):
             magenta.navigate(PARAMS['nav'][0])
+    elif PARAMS.has_key('trailer'):
+            magenta.showTrailer(PARAMS['trailer'][0])
+    elif PARAMS.has_key('content'):
+             xbmc.executebuiltin('ActivateWindow(12003)')
     else:
         magenta.showMenu()
 
