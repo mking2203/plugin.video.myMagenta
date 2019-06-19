@@ -519,29 +519,52 @@ class  myMagenta(object):
                 response = s.get(href)
                 trailerDetails = json.loads(response.text)
 
-                print 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
-                print trailerDetails
+                list = []
+                metaData = trailerDetails['content']['feature']['metadata']
+                trailers = trailerDetails['content']['feature']['representations']
 
-                # get playlist
-                playlist =  trailerDetails['content']['feature']['representations'][1]['contentPackages'][0]['media']['href']
-                response = s.get(playlist)
+                cnt = 0
+                sel = 0
 
-                pattern = '<media.*?src="(.*?)"'
-                m = re.search(pattern,response.text)
-                if m is not None:
-                    # play
-                    url = m.group(1)
+                for one in trailers:
 
-                    is_helper = inputstreamhelper.Helper(PROTOCOL, drm=DRM)
+                    type = one['type']
+                    quality = one['quality']
+                    contentClass = one['contentPackages'][0]['contentClass']
+                    contentWidth = one['contentPackages'][0]['resolution']['width']
+                    contentHref = one['contentPackages'][0]['media']['href']
 
-                    if is_helper.check_inputstream():
-                        playitem = xbmcgui.ListItem(path=url)
-                        playitem.setProperty('inputstreamaddon', is_helper.inputstream_addon)
-                        playitem.setProperty('inputstream.adaptive.manifest_type', PROTOCOL)
+                    if 'ISMV' in contentClass:
 
-                        xbmc.Player().play(item=url, listitem=playitem)
+                        li = xbmcgui.ListItem(label = str(type) + ' ' + str(quality) + ' ' + str(contentWidth),
+                                              path=contentHref)
+                        list.append(li)
+                        cnt = cnt + 1
 
+                        if sel == 0:
+                            if quality == 'HD':
+                                sel = cnt-1
 
+                dialog = xbmcgui.Dialog()
+                ret = dialog.select('Wähle ein Trailer', list, preselect=sel)
+                if ret >=0:
+                    playlist =  list[ret].getPath()
+                    response = s.get(playlist)
+
+                    pattern = '<media.*?src="(.*?)"'
+                    m = re.search(pattern,response.text)
+                    if m is not None:
+                        url = m.group(1)
+
+                        is_helper = inputstreamhelper.Helper(PROTOCOL, drm=DRM)
+
+                        if is_helper.check_inputstream():
+                            playitem = xbmcgui.ListItem(label=metaData['title'], path=url, thumbnailImage=metaData['titleImage']['href'])
+                            playitem.setInfo('video', { 'plot': metaData['fullDescription']})
+                            playitem.setProperty('inputstreamaddon', is_helper.inputstream_addon)
+                            playitem.setProperty('inputstream.adaptive.manifest_type', PROTOCOL)
+
+                            xbmc.Player().play(item=url, listitem=playitem)
 
 if __name__ == '__main__':
 
@@ -561,7 +584,11 @@ if __name__ == '__main__':
     elif PARAMS.has_key('trailer'):
             magenta.showTrailer(PARAMS['trailer'][0])
     elif PARAMS.has_key('content'):
-             xbmc.executebuiltin('ActivateWindow(12003)')
+
+            li = xbmcgui.ListItem(label='Jop was geht')
+            li.setInfo('video', { 'plot': 'What?' })
+
+            xbmcgui.Dialog().info(li)
     else:
         magenta.showMenu()
 
