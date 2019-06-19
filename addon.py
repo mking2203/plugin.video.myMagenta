@@ -64,6 +64,12 @@ class contentInformation(object):
         else:
             return 'no description'
 
+    def getLongDescription(self):
+        if 'longDescription' in self.jData:
+            return self.jData['longDescription']
+        else:
+            return None
+
     def getMetaData(self):
         if 'metaData' in self.jData:
             return self.jData['metaData']
@@ -73,6 +79,12 @@ class contentInformation(object):
     def getImages(self):
         if 'images' in self.jData:
             return self.jData['images']
+        else:
+            return []
+
+    def getCast(self):
+        if 'castAndCrew' in self.jData:
+            return self.jData['castAndCrew']
         else:
             return []
 
@@ -90,7 +102,11 @@ class contentInformation(object):
 
     def getTrailer(self):
         if 'trailers' in self.jData:
-            return self.jData['trailers'][0]['href']
+            trs = self.jData['trailers']
+            if len(trs)>0:
+                return self.jData['trailers'][0]['href']
+            else:
+                return None
         else:
             return None
 
@@ -124,7 +140,7 @@ class  myMagenta(object):
 
     def addDetails(self, item):
 
-        url = PATH + '?content=show'
+        url = PATH + '?content=' + item.href
         li = xbmcgui.ListItem(label='Details', thumbnailImage=item.thumb)
         li.setInfo('video', { 'plot': item.description })
         xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
@@ -140,9 +156,9 @@ class  myMagenta(object):
 
         xbmcplugin.setContent(HANDLE, 'files')
 
-        url = PATH + '?content=show'
-        li = xbmcgui.ListItem(label='Content')
-        xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
+        #url = PATH + '?content=show'
+        #li = xbmcgui.ListItem(label='Content')
+        #xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
 
         s = requests.Session()
 
@@ -429,6 +445,7 @@ class  myMagenta(object):
                                     mItem.title = title
                                     mItem.description = desc
                                     mItem.thumb = thumb
+                                    mItem.href = href
                                     self.addDetails(mItem)
 
                                     if c.getTrailer():
@@ -470,6 +487,92 @@ class  myMagenta(object):
                                             self.addSelector(sItem)
 
         xbmcplugin.endOfDirectory(HANDLE, cacheToDisc=False)
+
+    def showDetails(self, href):
+
+        s = requests.Session()
+
+        page = 'https://web.magentatv.de/EPG/JSON/Login?&T=Windows_firefox_67'
+        data = { "userId": "Guest" ,
+                 "mac" :"00:00:00:00:00:00" }
+
+        payload = json.dumps(data)
+        response = s.post(page, params = payload)
+
+        if (response.status_code == 200):
+
+            headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:67.0) Gecko/20100101 Firefox/67.0',
+                        'Accept': 'application/json, text/javascript, */*; q=0.01',
+                        'Accept-Language': 'de,en-US;q=0.7,en;q=0.3',
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Connection': 'keep-alive',
+                        'Referer': 'https://web.magentatv.de/EPG/' }
+
+            uid = uuid.uuid4().hex
+
+            data = { "terminalid":"00:00:00:00:00:00",
+                     "mac":"00:00:00:00:00:00",
+                     "terminaltype":"WEBTV",
+                     "utcEnable":1,
+                     "timezone":"Africa/Ceuta",
+                     "userType":3,
+                     "terminalvendor":"Unknown",
+                     "preSharedKeyID":"PC01P00002",
+                     "cnonce": uid,
+                     "areaid":"1",
+                     "templatename":"NGTV",
+                     "usergroup":"-1",
+                     "subnetId":"4901" }
+
+            payload = json.dumps(data)
+            response = s.post('https://web.magentatv.de/EPG/JSON/Authenticate?SID=firstup&T=Windows_firefox_67', headers = headers, data=payload)
+
+            if (response.status_code == 200):
+
+                data = json.loads(response.text)
+                token = data ['csrfToken']
+
+                response = s.get(href)
+                details = json.loads(response.text)
+
+                c = contentInformation(details['content']['contentInformation'])
+
+                title = c.getTitle()
+                desc = c.getDescription()
+                if c.getLongDescription():
+                    desc = c.getLongDescription()
+
+                thumb = ''
+                fanArt = ''
+                images = c.getImages()
+
+                for image in images:
+                    iType = image ['imageType']
+                    if(iType == '5x7 big' or thumb == ''):
+                        thumb = image ['href']
+                    if(iType == 'still'):
+                        fanArt = image ['href']
+
+                li = xbmcgui.ListItem(label=title, path='')
+                li.setInfo('video', { 'plot': desc})
+                li.setArt({'thumb': thumb,
+                            'poster': thumb,
+                            'fanart': fanArt})
+
+                castList = []
+                cast = c.getCast()
+
+                for c in cast:
+                    if c ['role'] == 'actor':
+                        name = c ['person']['firstName']
+                        if 'lastName' in  c ['person']:
+                            name = c ['person']['firstName'] + ' ' + c ['person']['lastName']
+                        nameFiction = c ['fictionalCharacter']['firstName']
+                        castList.append(name)
+
+                li.setInfo('video', {'cast': castList })
+                xbmcgui.Dialog().info(li)
 
     def showTrailer(self, href):
 
@@ -524,7 +627,7 @@ class  myMagenta(object):
                 trailers = trailerDetails['content']['feature']['representations']
 
                 cnt = 0
-                sel = 0
+                sel = -1
 
                 for one in trailers:
 
@@ -534,14 +637,15 @@ class  myMagenta(object):
                     contentWidth = one['contentPackages'][0]['resolution']['width']
                     contentHref = one['contentPackages'][0]['media']['href']
 
-                    if 'ISMV' in contentClass:
+                    #if 'ISMV' in contentClass:
+                    if 'SmoothStreaming' in type:
 
                         li = xbmcgui.ListItem(label = str(type) + ' ' + str(quality) + ' ' + str(contentWidth),
                                               path=contentHref)
                         list.append(li)
                         cnt = cnt + 1
 
-                        if sel == 0:
+                        if sel == -1:
                             if quality == 'HD':
                                 sel = cnt-1
 
@@ -584,11 +688,7 @@ if __name__ == '__main__':
     elif PARAMS.has_key('trailer'):
             magenta.showTrailer(PARAMS['trailer'][0])
     elif PARAMS.has_key('content'):
-
-            li = xbmcgui.ListItem(label='Jop was geht')
-            li.setInfo('video', { 'plot': 'What?' })
-
-            xbmcgui.Dialog().info(li)
+            magenta.showDetails(PARAMS['content'][0])
     else:
         magenta.showMenu()
 
