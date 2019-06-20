@@ -156,9 +156,9 @@ class  myMagenta(object):
 
         xbmcplugin.setContent(HANDLE, 'files')
 
-        #url = PATH + '?content=show'
-        #li = xbmcgui.ListItem(label='Content')
-        #xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
+        url = PATH + '?search=_menu'
+        li = xbmcgui.ListItem(label='Suchen')
+        xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
 
         s = requests.Session()
 
@@ -670,6 +670,140 @@ class  myMagenta(object):
 
                             xbmc.Player().play(item=url, listitem=playitem)
 
+    def search(self, query):
+
+        s = requests.Session()
+
+        page = 'https://web.magentatv.de/EPG/JSON/Login?&T=Windows_firefox_67'
+        data = { "userId": "Guest" ,
+                 "mac" :"00:00:00:00:00:00" }
+
+        payload = json.dumps(data)
+        response = s.post(page, params = payload)
+
+        if (response.status_code == 200):
+
+            headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:67.0) Gecko/20100101 Firefox/67.0',
+                        'Accept': 'application/json, text/javascript, */*; q=0.01',
+                        'Accept-Language': 'de,en-US;q=0.7,en;q=0.3',
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Connection': 'keep-alive',
+                        'Referer': 'https://web.magentatv.de/EPG/' }
+
+            uid = uuid.uuid4().hex
+
+            data = { "terminalid":"00:00:00:00:00:00",
+                     "mac":"00:00:00:00:00:00",
+                     "terminaltype":"WEBTV",
+                     "utcEnable":1,
+                     "timezone":"Africa/Ceuta",
+                     "userType":3,
+                     "terminalvendor":"Unknown",
+                     "preSharedKeyID":"PC01P00002",
+                     "cnonce": uid,
+                     "areaid":"1",
+                     "templatename":"NGTV",
+                     "usergroup":"-1",
+                     "subnetId":"4901" }
+
+            payload = json.dumps(data)
+            response = s.post('https://web.magentatv.de/EPG/JSON/Authenticate?SID=firstup&T=Windows_firefox_67', headers = headers, data=payload)
+
+            if (response.status_code == 200):
+
+                data = json.loads(response.text)
+                token = data ['csrfToken']
+
+                if query == '_menu':
+                    #shoe search menu
+                    url = PATH + '?search=_new'
+                    li = xbmcgui.ListItem(label= 'Neue Suche')
+                    xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
+
+                    searches = []
+                    searches.append(str(xbmcplugin.getSetting(HANDLE, 'search1')))
+                    searches.append(str(xbmcplugin.getSetting(HANDLE, 'search2')))
+                    searches.append(str(xbmcplugin.getSetting(HANDLE, 'search3')))
+                    searches.append(str(xbmcplugin.getSetting(HANDLE, 'search4')))
+                    searches.append(str(xbmcplugin.getSetting(HANDLE, 'search5')))
+
+                    for s in searches:
+                        if(s <> ''):
+                            url = PATH + '?search=' + s
+                            li = xbmcgui.ListItem(label=s)
+                            xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
+
+                    xbmcplugin.endOfDirectory(HANDLE, cacheToDisc=False)
+
+                else:
+
+                    if query == '_new':
+
+                        query = ''
+
+                        keyboard = xbmc.Keyboard('', 'Suchen')
+                        keyboard.doModal()
+
+                        if (keyboard.isConfirmed()):
+                            keyword = keyboard.getText()
+
+                            if len(keyword) > 0:
+                                query = keyword
+
+                                searches = []
+                                searches.append(str(xbmcplugin.getSetting(HANDLE, 'search1')))
+                                searches.append(str(xbmcplugin.getSetting(HANDLE, 'search2')))
+                                searches.append(str(xbmcplugin.getSetting(HANDLE, 'search3')))
+                                searches.append(str(xbmcplugin.getSetting(HANDLE, 'search4')))
+                                searches.append(str(xbmcplugin.getSetting(HANDLE, 'search5')))
+
+                                xbmcaddon.Addon().setSetting('search1', query)
+                                xbmcaddon.Addon().setSetting('search2', value=searches[0])
+                                xbmcaddon.Addon().setSetting('search3', value=searches[1])
+                                xbmcaddon.Addon().setSetting('search4', value=searches[2])
+                                xbmcaddon.Addon().setSetting('search5', value=searches[3])
+
+                    if len(query) > 0:
+
+                        # now search
+                        url = 'https://web.magentatv.de/EPG/search/ngtv/select/all_ott/?query=%s&size=10&channelMapId=OTT&offset=0' % query
+
+                        response = s.get(url)
+                        jObj = json.loads(response.text)
+
+                        items = jObj ['totalItems']
+
+                        result = jObj['results']
+                        for r in result:
+
+                                detailID = r['id']
+                                title = r['title']
+                                year = ''
+                                if 'year' in r:
+                                    title = title + ' (%s)' % r['year']
+                                thumb = ''
+                                if 'poster' in r:
+                                    thumb = r['poster']
+                                genre = '?'
+                                if 'mainGenre' in r:
+                                    genre = r['mainGenre']
+                                rating = 'Unbekannt'
+                                if 'ageRatingId' in r:
+                                    rating = r['ageRatingId']
+                                description = genre + ' - ' + rating
+
+                                # deep link aus dem manifest
+                                url = 'https://wcss.t-online.de/cvss/IPTV2015@Mobile/vodclient/v1/assetDetails/44593/%s?$WhiteLabelId=OTT&checkUsageRights=false&$theme=hdr&$resolution=webClient1280&$cid=%s&$redirect=false&$hideAdult=false' % (detailID,str(uid))
+                                url = PATH + '?nav=' + url
+
+                                li = xbmcgui.ListItem(label= title, thumbnailImage=thumb)
+                                li.setInfo('video', { 'plot': description })
+                                xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
+
+                        xbmcplugin.endOfDirectory(HANDLE, cacheToDisc=False)
+
+
 if __name__ == '__main__':
 
     ADDON = xbmcaddon.Addon()
@@ -689,6 +823,8 @@ if __name__ == '__main__':
             magenta.showTrailer(PARAMS['trailer'][0])
     elif PARAMS.has_key('content'):
             magenta.showDetails(PARAMS['content'][0])
+    elif PARAMS.has_key('search'):
+            magenta.search(PARAMS['search'][0])
     else:
         magenta.showMenu()
 

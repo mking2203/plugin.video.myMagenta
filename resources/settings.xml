@@ -7,5 +7,10 @@
     <setting id="FSK18" type="bool" label="FSK18" default="false"/>
    <setting type="sep" />
     <setting id="debug" type="bool" label="Debug" default="false"/>
+    <setting id="search1" type="text" label=""visible="false"/>
+    <setting id="search2" type="text" label=""visible="false"/>
+    <setting id="search3" type="text" label=""visible="false"/>
+    <setting id="search4" type="text" label=""visible="false"/>
+    <setting id="search5" type="text" label=""visible="false"/>
   </category>
 </settings>
