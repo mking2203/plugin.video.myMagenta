@@ -52,6 +52,42 @@ class contentInformation(object):
         else:
             return 'no title'
 
+    def getGenre(self):
+        if 'mainGenre' in self.jData:
+            return self.jData['mainGenre']
+        else:
+            return 'Unbekannt'
+
+    def getCountry(self):
+        if 'countries' in self.jData:
+            return self.jData['countries'][0]
+        else:
+            return 'Unbekannt'
+
+    def getYear(self):
+        if 'year' in self.jData:
+            return self.jData['year']
+        else:
+            return None
+
+    def getRuntime(self):
+        if 'runtime' in self.jData:
+            return self.jData['runtime']
+        else:
+            return None
+
+    def getChildProtection(self):
+        if 'childProtectionDisplayName' in self.jData:
+            return self.jData['childProtectionDisplayName']
+        else:
+            return 'Unbekannt'
+
+    def getCommunity(self):
+        if 'communityRatingStars' in self.jData:
+            return self.jData['communityRatingStars']
+        else:
+            return None
+
     def getOrgignalTitle(self):
         if 'orgTitle' in self.jData:
             return self.jData['orgTitle']
@@ -339,7 +375,11 @@ class  myMagenta(object):
 
                                 for group in jObj['content']['groups']:
                                     groupType = group ['groupType']
-                                    self.addHeading2('Gruppe')
+
+                                    if 'title' in group:
+                                        self.addHeading2(group ['title'])
+                                    else:
+                                        self.addHeading2('---------------------------')
 
                                     if 'showAll' in group:
                                         sItem = anyItem()
@@ -563,13 +603,28 @@ class  myMagenta(object):
                 castList = []
                 cast = c.getCast()
 
-                for c in cast:
-                    if c ['role'] == 'actor':
-                        name = c ['person']['firstName']
-                        if 'lastName' in  c ['person']:
-                            name = c ['person']['firstName'] + ' ' + c ['person']['lastName']
-                        nameFiction = c ['fictionalCharacter']['firstName']
+                for ca in cast:
+                    if ca['role'] == 'actor':
+                        name = ca['person']['firstName']
+                        if 'lastName' in  ca['person']:
+                            name = ca['person']['firstName'] + ' ' + ca['person']['lastName']
+                        if 'fictionalCharacter' in ca:
+                            nameFiction = ca['fictionalCharacter']['firstName']
                         castList.append(name)
+
+                li.setInfo('video', {'mpaa': c.getChildProtection() })
+                li.setInfo('video', {'genre': c.getGenre() })
+                li.setInfo('video', {'country': c.getCountry() })
+                if c.getYear():
+                    li.setInfo('video', {'year': c.getYear() })
+                if c.getRuntime():
+                    li.setInfo('video', {'duration': c.getRuntime() })
+                if c.getCommunity():
+                    li.setInfo('video', {'rating':c.getCommunity() * 2 })
+
+                # crahes KODI
+                #if c.getTrailer():
+                #    li.setInfo('video', {'trailer': PATH + '?trailer=' + c.getTrailer() })
 
                 li.setInfo('video', {'cast': castList })
                 xbmcgui.Dialog().info(li)
