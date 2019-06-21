@@ -4,7 +4,8 @@
 import os
 import sys
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
+from datetime import timedelta
 import uuid
 
 import urllib
@@ -980,31 +981,41 @@ class  myMagenta(object):
 
                         playlist = json.loads(response.text)
 
+                        print response.text.encode('utf-8')
+
                         for item in playlist['playbilllist']:
 
-                            startPlay = item ['starttime']
-                            startPlay = startPlay [:19]
-                            startDT = datetime.strptime(startPlay, '%Y-%m-%d %H:%M:%S')
+                            if 'starttime' in item:
 
-                            stopPlay = item ['endtime']
-                            stopPlay = stopPlay [:19]
-                            stopDT = datetime.strptime(stopPlay, '%Y-%m-%d %H:%M:%S')
+                                startPlay = item ['starttime']
+                                startPlay = startPlay [:19]
 
-                            if(startDT<=actTime) & (stopDT>actTime):
+                                # strptime bug
+                                #startDT = datetime.strptime(startPlay, '%Y-%m-%d %H:%M:%S')
+                                startDT = datetime(*(time.strptime(startPlay, '%Y-%m-%d %H:%M:%S')[0:6]))
 
-                                title = item ['name']
-                                chID = item ['channelid']
-                                url = ''
+                                stopPlay = item ['endtime']
+                                stopPlay = stopPlay [:19]
 
-                                thumb = ch.getChannelPicture(chID)
-                                channelName = ch.getChannelName(chID)
-                                channelNo = int(ch.getChannelNo(chID))
+                                # strptime bug
+                                #stopDT = datetime.strptime(stopPlay, '%Y-%m-%d %H:%M:%S')
+                                stopDT = datetime(*(time.strptime(stopPlay, '%Y-%m-%d %H:%M:%S')[0:6]))
 
-                                fulltitle = '%03i ' % channelNo + channelName
+                                if(startDT<=actTime) & (stopDT>actTime):
 
-                                li = xbmcgui.ListItem(label= fulltitle, thumbnailImage=thumb)
-                                li.setInfo('video', { 'plot': title })
-                                xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
+                                    title = item ['name']
+                                    chID = item ['channelid']
+                                    url = ''
+
+                                    thumb = ch.getChannelPicture(chID)
+                                    channelName = ch.getChannelName(chID)
+                                    channelNo = int(ch.getChannelNo(chID))
+
+                                    fulltitle = '%03i ' % channelNo + channelName
+
+                                    li = xbmcgui.ListItem(label= fulltitle, thumbnailImage=thumb)
+                                    li.setInfo('video', { 'plot': title })
+                                    xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
 
         xbmcplugin.addSortMethod(HANDLE, xbmcplugin.SORT_METHOD_LABEL)
         xbmcplugin.endOfDirectory(HANDLE, cacheToDisc=False)
