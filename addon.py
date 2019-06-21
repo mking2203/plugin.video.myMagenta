@@ -24,6 +24,8 @@ import xbmcaddon
 import xbmcplugin
 import inputstreamhelper
 
+from resources.lib.contentInformation import contentInformation
+
 PROTOCOL = 'ism'
 DRM = 'com.widevine.alpha'
 
@@ -32,67 +34,8 @@ class anyItem:
     title = ''
     orgTitle =''
     description = ''
-    meta = ''
     thumb =''
     href = ''
-
-class contentInformation(object):
-
-    # nur ein object
-    ID = 0
-    title = 'Unbekannt'
-    originalTitle = ''
-    genre = 'Unbekannt'
-    description = ''
-    longDescription = None
-    metaData = ''
-    year = None
-    runtime = None
-    country = 'Unbekannt'
-    detailPage = ''
-    childProtection = 'Unbekannt'
-    communityRating = None
-    assetOrdinal = 0
-
-    def __init__(self, data):
-        self.jData = data
-
-        if 'id' in self.jData: self.ID = self.jData['id']
-        if 'title' in self.jData: self.title = self.jData['title']
-        if 'description' in self.jData: self.description = self.jData['description']
-        if 'mainGenre' in self.jData: self.genre = self.jData['mainGenre']
-        if 'year' in self.jData: self.year = self.jData['year']
-        if 'runtime' in self.jData: self.runtime = self.jData['runtime']
-        if 'countries' in self.jData: self.country = self.jData['countries'][0]
-        if 'detailPage' in self.jData: self.detailPage = self.jData['detailPage']['href']
-        if 'longDescription' in self.jData: self.longDescription = self.jData['longDescription']
-        if 'orgTitle' in self.jData: self.originalTitle = self.jData['orgTitle']
-        if 'childProtectionDisplayName' in self.jData: self.childProtection = self.jData['childProtectionDisplayName']
-        if 'communityRatingStars' in self.jData: self.communityRating = self.jData['communityRatingStars']
-        if 'assetOrdinal' in self.jData: self.assetOrdinal = self.jData['assetOrdinal']
-        if 'metaData' in self.jData: self.metaData = self.jData['metaData']
-
-    def getImages(self):
-        if 'images' in self.jData:
-            return self.jData['images']
-        else:
-            return []
-
-    def getCast(self):
-        if 'castAndCrew' in self.jData:
-            return self.jData['castAndCrew']
-        else:
-            return []
-
-    def getTrailer(self):
-        if 'trailers' in self.jData:
-            trs = self.jData['trailers']
-            if len(trs)>0:
-                return self.jData['trailers'][0]['href']
-            else:
-                return None
-        else:
-            return None
 
 class channels(object):
 
@@ -187,101 +130,38 @@ class  myMagenta(object):
         li.setProperty("IsPlayable", "false")
         xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
 
+        page = 'https://wcss.t-online.de/cvss/IPTV2015@First/vodclient/v1/redirectdocumentgroup/TV_VOD_DG_SG_Mov' # homeurl from manifest
+
         s = requests.Session()
+        response = s.get(page)
 
-        page = 'https://web.magentatv.de/EPG/JSON/Login?&T=Windows_firefox_67'
-        data = { "userId": "Guest" ,
-                 "mac" :"00:00:00:00:00:00" }
+        if (response.status_code == 200):
 
-        payload = json.dumps(data)
-        #response = s.post(page, params = payload)
+            jObj = json.loads(response.text)
 
-        #if (response.status_code == 200):
-        if (True):
+            if '$type' in jObj:
+                jType = jObj['$type']
 
-            headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:67.0) Gecko/20100101 Firefox/67.0',
-                        'Accept': 'application/json, text/javascript, */*; q=0.01',
-                        'Accept-Language': 'de,en-US;q=0.7,en;q=0.3',
-                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Connection': 'keep-alive',
-                        'Referer': 'https://web.magentatv.de/EPG/' }
+                if jType == 'structuredGrid':
+                    if 'menu' in jObj:
+                        for item in jObj['menu']:
+                            if 'title' in item :
+                                if 'screen' in item:
 
-            uid = uuid.uuid4().hex
+                                    locked = True
+                                    if 'isLocked' in item:
+                                        if item ['isLocked'] == 'false':
+                                            locked = False
 
-            data = { "terminalid":"00:00:00:00:00:00",
-                     "mac":"00:00:00:00:00:00",
-                     "terminaltype":"WEBTV",
-                     "utcEnable":1,
-                     "timezone":"Africa/Ceuta",
-                     "userType":3,
-                     "terminalvendor":"Unknown",
-                     "preSharedKeyID":"PC01P00002",
-                     "cnonce": uid,
-                     "areaid":"1",
-                     "templatename":"NGTV",
-                     "usergroup":"-1",
-                     "subnetId":"4901" }
+                                    if xbmcplugin.getSetting(HANDLE, 'FSK18') == 'true':
+                                        locked = False
 
-            #payload = json.dumps(data)
-            #response = s.post('https://web.magentatv.de/EPG/JSON/Authenticate?SID=firstup&T=Windows_firefox_67', headers = headers, data=payload)
+                                    if not locked:
 
-            #if (response.status_code == 200):
-            if (True):
-
-                #data = json.loads(response.text)
-                #token = data ['csrfToken']
-
-                headers = {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:67.0) Gecko/20100101 Firefox/67.0',
-                        'Accept': 'application/json, text/javascript, */*; q=0.01',
-                        'Accept-Language': 'de,en-US;q=0.7,en;q=0.3',
-                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Connection': 'keep-alive',
-                        'Referer': 'https://web.magentatv.de/EPG/' }
-
-                data = {
-                    '%24WhiteLabelId':'OTT',
-                    '%24limitPrincipalCpl':'',
-                    '%24theme':'hdr',
-                    '%24resolution':'webClient1280',
-                    '%24cid': uid,
-                    '%24redirect':'false',
-                    '%24hideAdult':'true' }
-
-                page = 'https://wcss.t-online.de/cvss/IPTV2015@First/vodclient/v1/redirectdocumentgroup/TV_VOD_DG_SG_Mov' # homeurl from manifest
-                response = s.get(page, headers = headers)# , params = data)
-
-                if (response.status_code == 200):
-
-                    jObj = json.loads(response.text)
-
-                    if '$type' in jObj:
-                        jType = jObj['$type']
-
-                        if jType == 'structuredGrid':
-                            if 'menu' in jObj:
-                                for item in jObj['menu']:
-                                    if 'title' in item :
-                                        if 'screen' in item:
-
-                                            locked = True
-                                            if 'isLocked' in item:
-                                                if item ['isLocked'] == 'false':
-                                                    locked = False
-                                            if xbmcplugin.getSetting(HANDLE, 'FSK18') == 'true':
-                                                locked = False
-
-                                            if not locked:
-
-                                                title =  item ['title']
-                                                href = item ['screen']['href']
-                                                thumb = ''
-
-                                                url = PATH + '?nav=' + href
-                                                li = xbmcgui.ListItem(label=title, thumbnailImage=thumb)
-                                                xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
+                                        sItem = anyItem()
+                                        sItem.title = item['title']
+                                        sItem.href = item['screen']['href']
+                                        self.addSelector(sItem)
 
         xbmcplugin.endOfDirectory(HANDLE, cacheToDisc=False)
 
@@ -409,7 +289,6 @@ class  myMagenta(object):
                                             if 'title' in details:
                                                 tItem = anyItem()
                                                 tItem.title = details ['title']
-                                                tItem.meta = details ['metaData']
                                                 if 'images' in details:
                                                     for image in details['images']:
                                                         name = image
@@ -514,7 +393,7 @@ class  myMagenta(object):
 
                                             sItem = anyItem()
                                             sItem.title = title + ' Folge ' + str(episode) + ' - '+ c.title
-                                            sItem.meta = c.description
+                                            sItem.description = c.description
                                             sItem.thumb = thumb
                                             sItem.href = c.detailPage
                                             self.addSelector(sItem)
