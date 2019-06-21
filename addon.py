@@ -38,80 +38,39 @@ class anyItem:
 
 class contentInformation(object):
 
+    # nur ein object
+    ID = 0
+    title = 'Unbekannt'
+    originalTitle = ''
+    genre = 'Unbekannt'
+    description = ''
+    longDescription = None
+    metaData = ''
+    year = None
+    runtime = None
+    country = 'Unbekannt'
+    detailPage = ''
+    childProtection = 'Unbekannt'
+    communityRating = None
+    assetOrdinal = 0
+
     def __init__(self, data):
         self.jData = data
 
-    def getID(self):
-        if 'id' in self.jData:
-            return self.jData['id']
-        else:
-            return ''
-
-    def getTitle(self):
-        if 'title' in self.jData:
-            return self.jData['title']
-        else:
-            return 'no title'
-
-    def getGenre(self):
-        if 'mainGenre' in self.jData:
-            return self.jData['mainGenre']
-        else:
-            return 'Unbekannt'
-
-    def getCountry(self):
-        if 'countries' in self.jData:
-            return self.jData['countries'][0]
-        else:
-            return 'Unbekannt'
-
-    def getYear(self):
-        if 'year' in self.jData:
-            return self.jData['year']
-        else:
-            return None
-
-    def getRuntime(self):
-        if 'runtime' in self.jData:
-            return self.jData['runtime']
-        else:
-            return None
-
-    def getChildProtection(self):
-        if 'childProtectionDisplayName' in self.jData:
-            return self.jData['childProtectionDisplayName']
-        else:
-            return 'Unbekannt'
-
-    def getCommunity(self):
-        if 'communityRatingStars' in self.jData:
-            return self.jData['communityRatingStars']
-        else:
-            return None
-
-    def getOrgignalTitle(self):
-        if 'orgTitle' in self.jData:
-            return self.jData['orgTitle']
-        else:
-            return ''
-
-    def getDescription(self):
-        if 'description' in self.jData:
-            return self.jData['description']
-        else:
-            return 'no description'
-
-    def getLongDescription(self):
-        if 'longDescription' in self.jData:
-            return self.jData['longDescription']
-        else:
-            return None
-
-    def getMetaData(self):
-        if 'metaData' in self.jData:
-            return self.jData['metaData']
-        else:
-            return ''
+        if 'id' in self.jData: self.ID = self.jData['id']
+        if 'title' in self.jData: self.title = self.jData['title']
+        if 'description' in self.jData: self.description = self.jData['description']
+        if 'mainGenre' in self.jData: self.genre = self.jData['mainGenre']
+        if 'year' in self.jData: self.year = self.jData['year']
+        if 'runtime' in self.jData: self.runtime = self.jData['runtime']
+        if 'countries' in self.jData: self.country = self.jData['countries'][0]
+        if 'detailPage' in self.jData: self.detailPage = self.jData['detailPage']['href']
+        if 'longDescription' in self.jData: self.longDescription = self.jData['longDescription']
+        if 'orgTitle' in self.jData: self.originalTitle = self.jData['orgTitle']
+        if 'childProtectionDisplayName' in self.jData: self.childProtection = self.jData['childProtectionDisplayName']
+        if 'communityRatingStars' in self.jData: self.communityRating = self.jData['communityRatingStars']
+        if 'assetOrdinal' in self.jData: self.assetOrdinal = self.jData['assetOrdinal']
+        if 'metaData' in self.jData: self.metaData = self.jData['metaData']
 
     def getImages(self):
         if 'images' in self.jData:
@@ -124,18 +83,6 @@ class contentInformation(object):
             return self.jData['castAndCrew']
         else:
             return []
-
-    def getDetailPage(self):
-        if 'detailPage' in self.jData:
-            return self.jData['detailPage']['href']
-        else:
-            return ''
-
-    def getAssetOrdinal(self):
-        if 'assetOrdinal' in self.jData:
-            return self.jData['assetOrdinal']
-        else:
-            return 0
 
     def getTrailer(self):
         if 'trailers' in self.jData:
@@ -193,7 +140,7 @@ class  myMagenta(object):
     def addHeading2(self, title):
 
         li = xbmcgui.ListItem("[COLOR silver]" + title + "[/COLOR]")
-        li.setProperty("IsPlayable", "false")
+        li.setProperty("IsPlayable", 'false')
         xbmcplugin.addDirectoryItem(handle=HANDLE, url='', listitem=li)
 
     def addSelector(self, item):
@@ -201,6 +148,7 @@ class  myMagenta(object):
         url = PATH + '?nav=' + item.href
         li = xbmcgui.ListItem(label=item.title, thumbnailImage=item.thumb)
         li.setInfo('video', { 'plot': item.description })
+        li.setProperty("IsPlayable", 'false')
         xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
 
     def addMovie(self, item):
@@ -215,6 +163,7 @@ class  myMagenta(object):
         url = PATH + '?content=' + item.href
         li = xbmcgui.ListItem(label='Details', thumbnailImage=item.thumb)
         li.setInfo('video', { 'plot': item.description })
+        li.setProperty("IsPlayable", 'false')
         xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
 
     def addTrailer(self, item):
@@ -229,11 +178,13 @@ class  myMagenta(object):
         xbmcplugin.setContent(HANDLE, 'files')
 
         url = PATH + '?search=_menu'
-        li = xbmcgui.ListItem(label='Suchen')
+        li = xbmcgui.ListItem(label='Suche', thumbnailImage = 'defaultaddonssearch.png')
+        li.setProperty("IsPlayable", 'false')
         xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
 
         url = PATH + '?TV=_menu'
-        li = xbmcgui.ListItem(label='TV')
+        li = xbmcgui.ListItem(label='TV', thumbnailImage = 'defaulttvshows.png')
+        li.setProperty("IsPlayable", "false")
         xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
 
         s = requests.Session()
@@ -323,11 +274,13 @@ class  myMagenta(object):
                                                 locked = False
 
                                             if not locked:
+
                                                 title =  item ['title']
                                                 href = item ['screen']['href']
+                                                thumb = ''
 
                                                 url = PATH + '?nav=' + href
-                                                li = xbmcgui.ListItem(label=title)
+                                                li = xbmcgui.ListItem(label=title, thumbnailImage=thumb)
                                                 xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
 
         xbmcplugin.endOfDirectory(HANDLE, cacheToDisc=False)
@@ -435,11 +388,11 @@ class  myMagenta(object):
                                                 c = contentInformation(item['assetDetails']['contentInformation'])
 
                                                 mItem = anyItem()
-                                                mItem.title = c.getTitle()
-                                                mItem.orgTitle = c.getOrgignalTitle()
-                                                mItem.description = c.getDescription()
-                                                mItem.ID = c.getID()
-                                                mItem.href = c.getDetailPage()
+                                                mItem.title = c.title
+                                                mItem.orgTitle = c.originalTitle
+                                                mItem.description = c.description
+                                                mItem.ID = c.ID
+                                                mItem.href = c.detailPage
 
                                                 images = c.getImages()
                                                 for image in images:
@@ -486,11 +439,11 @@ class  myMagenta(object):
                                 c = contentInformation(item['assetDetails']['contentInformation'])
 
                                 mItem = anyItem()
-                                mItem.title = c.getTitle()
-                                mItem.orgTitle = c.getOrgignalTitle()
-                                mItem.description = c.getDescription()
-                                mItem.ID = c.getID()
-                                mItem.href = c.getDetailPage()
+                                mItem.title = c.title
+                                mItem.orgTitle = c.originalTitle
+                                mItem.description = c.description
+                                mItem.ID = c.ID
+                                mItem.href = c.detailPage
 
                                 images = c.getImages()
                                 for image in images:
@@ -506,8 +459,8 @@ class  myMagenta(object):
 
                                 c = contentInformation(jObj['content']['contentInformation'])
 
-                                title = c.getTitle()
-                                desc = c.getDescription()
+                                title = c.title
+                                desc = c.description
 
                                 thumb = ''
                                 images = c.getImages()
@@ -550,20 +503,20 @@ class  myMagenta(object):
 
                                         if sType == 'Season':
                                             sItem = anyItem()
-                                            sItem.title = c.getTitle()
+                                            sItem.title = c.title
                                             sItem.thumb = thumb
-                                            sItem.href = c.getDetailPage()
+                                            sItem.href = c.detailPage
                                             self.addSelector(sItem)
 
                                         if sType == 'Episode':
 
-                                            episode = c.getAssetOrdinal()
+                                            episode = c.assetOrdinal
 
                                             sItem = anyItem()
-                                            sItem.title = title + ' Folge ' + str(episode) + ' - '+ c.getTitle()
-                                            sItem.meta = c.getDescription()
+                                            sItem.title = title + ' Folge ' + str(episode) + ' - '+ c.title
+                                            sItem.meta = c.description
                                             sItem.thumb = thumb
-                                            sItem.href = c.getDetailPage()
+                                            sItem.href = c.detailPage
                                             self.addSelector(sItem)
 
         xbmcplugin.endOfDirectory(HANDLE, cacheToDisc=False)
@@ -618,10 +571,9 @@ class  myMagenta(object):
 
                 c = contentInformation(details['content']['contentInformation'])
 
-                title = c.getTitle()
-                desc = c.getDescription()
-                if c.getLongDescription():
-                    desc = c.getLongDescription()
+                title = c.title
+                desc = c.description
+                if c.longDescription: desc = c.longDescription
 
                 thumb = ''
                 fanArt = ''
@@ -652,15 +604,15 @@ class  myMagenta(object):
                             nameFiction = ca['fictionalCharacter']['firstName']
                         castList.append(name)
 
-                li.setInfo('video', {'mpaa': c.getChildProtection() })
-                li.setInfo('video', {'genre': c.getGenre() })
-                li.setInfo('video', {'country': c.getCountry() })
-                if c.getYear():
-                    li.setInfo('video', {'year': c.getYear() })
-                if c.getRuntime():
-                    li.setInfo('video', {'duration': c.getRuntime() })
-                if c.getCommunity():
-                    li.setInfo('video', {'rating':c.getCommunity() * 2 })
+                li.setInfo('video', {'mpaa': c.childProtection })
+                li.setInfo('video', {'genre': c.genre })
+                li.setInfo('video', {'country': c.country })
+                if c.year:
+                    li.setInfo('video', {'year': c.year })
+                if c.runtime:
+                    li.setInfo('video', {'duration': c.runtime })
+                if c.communityRating:
+                    li.setInfo('video', {'rating':c.communityRating * 2 })
 
                 # crahes KODI
                 #if c.getTrailer():
@@ -993,6 +945,7 @@ class  myMagenta(object):
                                 # strptime bug
                                 #startDT = datetime.strptime(startPlay, '%Y-%m-%d %H:%M:%S')
                                 startDT = datetime(*(time.strptime(startPlay, '%Y-%m-%d %H:%M:%S')[0:6]))
+                                start = ('%02i' % startDT.hour) + ':' + ('%02i' % startDT.minute)
 
                                 stopPlay = item ['endtime']
                                 stopPlay = stopPlay [:19]
@@ -1000,6 +953,7 @@ class  myMagenta(object):
                                 # strptime bug
                                 #stopDT = datetime.strptime(stopPlay, '%Y-%m-%d %H:%M:%S')
                                 stopDT = datetime(*(time.strptime(stopPlay, '%Y-%m-%d %H:%M:%S')[0:6]))
+                                stop = ('%02i' % stopDT.hour) + ':' + '%02i' % (stopDT.minute)
 
                                 if(startDT<=actTime) & (stopDT>actTime):
 
@@ -1012,6 +966,8 @@ class  myMagenta(object):
                                     channelNo = int(ch.getChannelNo(chID))
 
                                     fulltitle = '%03i ' % channelNo + channelName
+
+                                    title = title + '\n' + start + ' - ' + stop
 
                                     li = xbmcgui.ListItem(label= fulltitle, thumbnailImage=thumb)
                                     li.setInfo('video', { 'plot': title })
