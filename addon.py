@@ -146,6 +146,41 @@ class contentInformation(object):
         else:
             return None
 
+class channels(object):
+
+    def __init__(self, data):
+        self.jData = data
+
+    def getChannel(self, ID):
+
+        for item in self.jData['channellist']:
+            if item['contentId'] == str(ID):
+                return item
+        return None
+
+    def getChannelNo(self, ID):
+
+        for item in self.jData['channellist']:
+            if item['contentId'] == str(ID):
+                return item ['chanNo']
+        return None
+
+    def getChannelName(self, ID):
+
+        for item in self.jData['channellist']:
+            if item['contentId'] == str(ID):
+                return item['name']
+        return 'channel ID = ' + str(ID)
+
+    def getChannelPicture(self, ID):
+
+        for item in self.jData['channellist']:
+            if item['contentId'] == str(ID):
+                pics = item ['pictures']
+                for p in pics:
+                    return p['href']
+        return ''
+
 class  myMagenta(object):
 
     def addHeading(self, title):
@@ -194,6 +229,10 @@ class  myMagenta(object):
 
         url = PATH + '?search=_menu'
         li = xbmcgui.ListItem(label='Suchen')
+        xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
+
+        url = PATH + '?TV=_menu'
+        li = xbmcgui.ListItem(label='TV')
         xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
 
         s = requests.Session()
@@ -858,6 +897,118 @@ class  myMagenta(object):
 
                         xbmcplugin.endOfDirectory(HANDLE, cacheToDisc=False)
 
+    def showTV(self):
+
+        xbmcplugin.setContent(HANDLE, 'files')
+
+        s = requests.Session()
+
+        page = 'https://web.magentatv.de/EPG/JSON/Login?&T=Windows_firefox_67'
+        data = { "userId": "Guest" ,
+                 "mac" :"00:00:00:00:00:00" }
+
+        payload = json.dumps(data)
+        response = s.post(page, params = payload)
+
+        if (response.status_code == 200):
+
+            headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:67.0) Gecko/20100101 Firefox/67.0',
+                        'Accept': 'application/json, text/javascript, */*; q=0.01',
+                        'Accept-Language': 'de,en-US;q=0.7,en;q=0.3',
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Connection': 'keep-alive',
+                        'Referer': 'https://web.magentatv.de/EPG/' }
+
+            uid = uuid.uuid4().hex
+
+            data = { "terminalid":"00:00:00:00:00:00",
+                     "mac":"00:00:00:00:00:00",
+                     "terminaltype":"WEBTV",
+                     "utcEnable":1,
+                     "timezone":"Africa/Ceuta",
+                     "userType":3,
+                     "terminalvendor":"Unknown",
+                     "preSharedKeyID":"PC01P00002",
+                     "cnonce": uid,
+                     "areaid":"1",
+                     "templatename":"NGTV",
+                     "usergroup":"-1",
+                     "subnetId":"4901" }
+
+            payload = json.dumps(data)
+            response = s.post('https://web.magentatv.de/EPG/JSON/Authenticate?SID=firstup&T=Windows_firefox_67', headers = headers, data=payload)
+
+            if (response.status_code == 200):
+
+                data = json.loads(response.text)
+                token = data ['csrfToken']
+
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:67.0) Gecko/20100101 Firefox/67.0',
+                    'Accept': 'application/json, text/javascript, */*; q=0.01',
+                    'Accept-Language': 'de,en-US;q=0.7,en;q=0.3',
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Connection': 'keep-alive',
+                    'Referer': 'https://web.magentatv.de/EPG/',
+                    'X_CSRFToken': token }
+
+                # get all channels
+                page = 'https://web.magentatv.de/EPG/JSON/AllChannel?SID=first&T=Windows_firefox_67'
+
+                data = {"properties":[{"name":"logicalChannel","include":"/channellist/logicalChannel/contentId,/channellist/logicalChannel/type,/channellist/logicalChannel/name,/channellist/logicalChannel/chanNo,/channellist/logicalChannel/pictures/picture/imageType,/channellist/logicalChannel/pictures/picture/href,/channellist/logicalChannel/foreignsn,/channellist/logicalChannel/externalCode,/channellist/logicalChannel/sysChanNo,/channellist/logicalChannel/physicalChannels/physicalChannel/mediaId,/channellist/logicalChannel/physicalChannels/physicalChannel/fileFormat,/channellist/logicalChannel/physicalChannels/physicalChannel/definition"}],"metaDataVer":"Channel/1.1","channelNamespace":"2","filterlist":[{"key":"IsHide","value":"-1"}],"returnSatChannel":0}
+                payload = json.dumps(data)
+
+                response = s.post(page, data=payload, headers = headers)
+                if (response.status_code == 200):
+
+                    ch  = channels(json.loads(response.text))
+
+                    # get actual program +/- 4 h
+                    actTime = datetime.now()
+                    tStart = actTime - timedelta(hours=4)
+                    tStop = actTime + timedelta(hours=4)
+
+                    page = 'https://web.magentatv.de/EPG/JSON/PlayBillList?userContentFilter=1992763264&sessionArea=1&SID=ottall&T=Windows_firefox_67'
+
+                    data = {"type":2,"isFiltrate":0,"orderType":4,"isFillProgram":1,"channelNamespace":"3","offset":0,"count":-1,"properties":[{"name":"playbill","include":"subName,id,name,starttime,endtime,channelid,ratingid,seriesID,genres,relatedVodIds,tipType,externalIds"}],"endtime": tStop.strftime('%Y%m%d%H%M00'),"begintime": tStart.strftime('%Y%m%d%H%M00')}
+                    payload = json.dumps(data)
+
+                    response = s.post(page, data=payload, headers = headers)
+                    if (response.status_code == 200):
+
+                        playlist = json.loads(response.text)
+
+                        for item in playlist['playbilllist']:
+
+                            startPlay = item ['starttime']
+                            startPlay = startPlay [:19]
+                            startDT = datetime.strptime(startPlay, '%Y-%m-%d %H:%M:%S')
+
+                            stopPlay = item ['endtime']
+                            stopPlay = stopPlay [:19]
+                            stopDT = datetime.strptime(stopPlay, '%Y-%m-%d %H:%M:%S')
+
+                            if(startDT<=actTime) & (stopDT>actTime):
+
+                                title = item ['name']
+                                chID = item ['channelid']
+                                url = ''
+
+                                thumb = ch.getChannelPicture(chID)
+                                channelName = ch.getChannelName(chID)
+                                channelNo = int(ch.getChannelNo(chID))
+
+                                fulltitle = '%03i ' % channelNo + channelName
+
+                                li = xbmcgui.ListItem(label= fulltitle, thumbnailImage=thumb)
+                                li.setInfo('video', { 'plot': title })
+                                xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
+
+        xbmcplugin.addSortMethod(HANDLE, xbmcplugin.SORT_METHOD_LABEL)
+        xbmcplugin.endOfDirectory(HANDLE, cacheToDisc=False)
+
 
 if __name__ == '__main__':
 
@@ -880,6 +1031,8 @@ if __name__ == '__main__':
             magenta.showDetails(PARAMS['content'][0])
     elif PARAMS.has_key('search'):
             magenta.search(PARAMS['search'][0])
+    elif PARAMS.has_key('TV'):
+            magenta.showTV()
     else:
         magenta.showMenu()
 
