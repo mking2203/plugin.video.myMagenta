@@ -28,6 +28,7 @@ from resources.lib.contentInformation import contentInformation
 
 PROTOCOL = 'ism'
 DRM = 'com.widevine.alpha'
+#DRM = 'com.microsoft.playready'
 
 class anyItem:
     ID = ''
