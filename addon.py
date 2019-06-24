@@ -10,6 +10,7 @@ import uuid
 
 import urllib
 import urllib2
+import cookielib
 import urlparse
 from random import randint
 
@@ -22,9 +23,12 @@ import xbmc
 import xbmcgui
 import xbmcaddon
 import xbmcplugin
+import xbmcvfs
 import inputstreamhelper
 
 from resources.lib.contentInformation import contentInformation
+from resources.lib.channels import channels
+from resources.lib.channels import channel
 
 PROTOCOL = 'ism'
 DRM = 'com.widevine.alpha'
@@ -38,41 +42,6 @@ class anyItem:
     thumb =''
     href = ''
 
-class channels(object):
-
-    def __init__(self, data):
-        self.jData = data
-
-    def getChannel(self, ID):
-
-        for item in self.jData['channellist']:
-            if item['contentId'] == str(ID):
-                return item
-        return None
-
-    def getChannelNo(self, ID):
-
-        for item in self.jData['channellist']:
-            if item['contentId'] == str(ID):
-                return item ['chanNo']
-        return None
-
-    def getChannelName(self, ID):
-
-        for item in self.jData['channellist']:
-            if item['contentId'] == str(ID):
-                return item['name']
-        return 'channel ID = ' + str(ID)
-
-    def getChannelPicture(self, ID):
-
-        for item in self.jData['channellist']:
-            if item['contentId'] == str(ID):
-                pics = item ['pictures']
-                for p in pics:
-                    return p['href']
-        return ''
-
 class  myMagenta(object):
 
     def addHeading(self, title):
@@ -81,9 +50,9 @@ class  myMagenta(object):
         li.setProperty("IsPlayable", "false")
         xbmcplugin.addDirectoryItem(handle=HANDLE, url='', listitem=li)
 
-    def addHeading2(self, title):
+    def addHeading2(self, title, thumb):
 
-        li = xbmcgui.ListItem("[COLOR silver]" + title + "[/COLOR]")
+        li = xbmcgui.ListItem("[COLOR orange]" + title + "[/COLOR]", thumbnailImage=thumb)
         li.setProperty("IsPlayable", 'false')
         xbmcplugin.addDirectoryItem(handle=HANDLE, url='', listitem=li)
 
@@ -164,13 +133,23 @@ class  myMagenta(object):
                                         sItem.href = item['screen']['href']
                                         self.addSelector(sItem)
 
+
+            url = PATH + '?settings=SET'
+            li = xbmcgui.ListItem(label='Einstellungen', thumbnailImage = '')
+            li.setProperty("IsPlayable", "false")
+            xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
+
         xbmcplugin.endOfDirectory(HANDLE, cacheToDisc=False)
 
     def navigate(self, href):
 
+        xbmc.log('MYMAGENTA (Navigate): ' + href)
+
         xbmcplugin.setContent(HANDLE, 'episodes')
 
+
         s = requests.Session()
+        s.cookies = cookielib.LWPCookieJar('cookiejar')
 
         page = 'https://web.magentatv.de/EPG/JSON/Login?&T=Windows_firefox_67'
         data = { "userId": "Guest" ,
@@ -235,6 +214,8 @@ class  myMagenta(object):
 
                 if (response.status_code == 200):
 
+                    s.cookies.save(COOKIE, ignore_discard=True, ignore_expires=True)
+
                     jObj = json.loads(response.text)
 
                     if '$type' in jObj:
@@ -243,17 +224,27 @@ class  myMagenta(object):
                         if jType == 'structuredGrid':
                             if 'content' in jObj:
 
+                                hasHeader = False
+
                                 if 'header' in jObj ['content']:
                                     title = jObj ['content']['header']['title']
+                                    hasHeader = True
                                     self.addHeading(title)
 
                                 for group in jObj['content']['groups']:
                                     groupType = group ['groupType']
 
+                                    background = ''
+                                    if 'backgroundImage' in group:
+                                        background = group ['backgroundImage']['href']
+
                                     if 'title' in group:
-                                        self.addHeading2(group ['title'])
+                                        self.addHeading2(group ['title'], background)
                                     else:
-                                        self.addHeading2('---------------------------')
+                                        if not hasHeader:
+                                            self.addHeading2('---------------------------', background)
+
+                                    hasHeader = False
 
                                     if 'showAll' in group:
                                         sItem = anyItem()
@@ -403,6 +394,8 @@ class  myMagenta(object):
 
     def showDetails(self, href):
 
+        xbmc.log('MYMAGENTA (Details): ' + href)
+
         s = requests.Session()
 
         page = 'https://web.magentatv.de/EPG/JSON/Login?&T=Windows_firefox_67'
@@ -477,9 +470,22 @@ class  myMagenta(object):
 
                 for ca in cast:
                     if ca['role'] == 'actor':
-                        name = ca['person']['firstName']
+
+                        name = ''
+                        first = ''
+                        last = ''
+
+                        if 'firstName' in  ca['person']:
+                            first = ca['person']['firstName']
                         if 'lastName' in  ca['person']:
-                            name = ca['person']['firstName'] + ' ' + ca['person']['lastName']
+                            last = ca['person']['lastName']
+
+                        name = first
+                        if first != '':
+                            name = name + ' ' + last
+                        else:
+                            name = last
+
                         if 'fictionalCharacter' in ca:
                             nameFiction = ca['fictionalCharacter']['firstName']
                         castList.append(name)
@@ -502,6 +508,8 @@ class  myMagenta(object):
                 xbmcgui.Dialog().info(li)
 
     def showTrailer(self, href):
+
+        xbmc.log('MYMAGENTA (Trailer): ' + href)
 
         s = requests.Session()
 
@@ -590,7 +598,12 @@ class  myMagenta(object):
                         is_helper = inputstreamhelper.Helper(PROTOCOL, drm=DRM)
 
                         if is_helper.check_inputstream():
-                            playitem = xbmcgui.ListItem(label=metaData['title'], path=url, thumbnailImage=metaData['titleImage']['href'])
+
+                            thumb = ''
+                            if 'titleImage' in metaData: thumb = metaData['titleImage']['href']
+                            if 'smallCoverImage' in metaData: thumb = metaData['smallCoverImage']['href']
+
+                            playitem = xbmcgui.ListItem(label=metaData['title'], path=url, thumbnailImage=thumb)
                             playitem.setInfo('video', { 'plot': metaData['fullDescription']})
                             playitem.setProperty('inputstreamaddon', is_helper.inputstream_addon)
                             playitem.setProperty('inputstream.adaptive.manifest_type', PROTOCOL)
@@ -796,7 +809,7 @@ class  myMagenta(object):
                 response = s.post(page, data=payload, headers = headers)
                 if (response.status_code == 200):
 
-                    ch  = channels(json.loads(response.text))
+                    allChannels  = channels(json.loads(response.text))
 
                     # get actual program +/- 4 h
                     actTime = datetime.now()
@@ -812,8 +825,6 @@ class  myMagenta(object):
                     if (response.status_code == 200):
 
                         playlist = json.loads(response.text)
-
-                        print response.text.encode('utf-8')
 
                         for item in playlist['playbilllist']:
 
@@ -841,12 +852,13 @@ class  myMagenta(object):
                                     chID = item ['channelid']
                                     url = ''
 
-                                    thumb = ch.getChannelPicture(chID)
-                                    channelName = ch.getChannelName(chID)
-                                    channelNo = int(ch.getChannelNo(chID))
+                                    channel = allChannels.getChannel(chID)
 
-                                    fulltitle = '%03i ' % channelNo + channelName
+                                    thumb = channel.picture
+                                    channelName = channel.name
+                                    channelNo = int(channel.number)
 
+                                    fulltitle = ('%03i ' % channelNo) + channelName
                                     title = title + '\n' + start + ' - ' + stop
 
                                     li = xbmcgui.ListItem(label= fulltitle, thumbnailImage=thumb)
@@ -865,6 +877,11 @@ if __name__ == '__main__':
     HANDLE = int(sys.argv[1])
     PARAMS = urlparse.parse_qs(sys.argv[2][1:])
 
+    PROFILE = xbmc.translatePath(ADDON.getAddonInfo('profile')).decode("utf-8")
+    if not xbmcvfs.exists(PROFILE): xbmcvfs.mkdirs(PROFILE)
+    COOKIE = os.path.join(PROFILE, "cookie.db")
+
+
     magenta = myMagenta()
 
     if PARAMS.has_key('mode'):
@@ -880,6 +897,8 @@ if __name__ == '__main__':
             magenta.search(PARAMS['search'][0])
     elif PARAMS.has_key('TV'):
             magenta.showTV()
+    elif PARAMS.has_key('settings'):
+            ADDON.openSettings()
     else:
         magenta.showMenu()
 
