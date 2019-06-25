@@ -113,6 +113,7 @@ class  myMagenta(object):
                 jType = jObj['$type']
 
                 if jType == 'structuredGrid':
+
                     if 'menu' in jObj:
                         for item in jObj['menu']:
                             if 'title' in item :
@@ -223,6 +224,26 @@ class  myMagenta(object):
 
                         if jType == 'structuredGrid':
                             if 'content' in jObj:
+
+                                try:
+                                    nextPage = jObj ['content']['page']['nextPage']['href']
+
+                                    aItem = anyItem()
+                                    aItem.title = 'Naechste Seite'
+                                    aItem.href = nextPage
+                                    self.addSelector(aItem)
+                                except:
+                                    pass
+
+                                try:
+                                    prevPage = jObj ['content']['page']['prevPage']['href']
+
+                                    aItem = anyItem()
+                                    aItem.title = 'Vorherige Seite'
+                                    aItem.href = prevPage
+                                    self.addSelector(aItem)
+                                except:
+                                    pass
 
                                 hasHeader = False
 
