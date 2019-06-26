@@ -27,6 +27,7 @@ import xbmcvfs
 import inputstreamhelper
 
 from resources.lib.contentInformation import contentInformation
+from resources.lib.partnerInformation import partnerInformation
 from resources.lib.channels import channels
 from resources.lib.channels import channel
 
@@ -86,6 +87,14 @@ class  myMagenta(object):
         li.setInfo('video', { 'plot': item.description })
         xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
 
+    def addVOD(self, item):
+
+        url = PATH + '?vod=' + item.href
+        li = xbmcgui.ListItem(label=item.title, thumbnailImage=item.thumb)
+        li.setInfo('video', { 'plot': item.description })
+        li.setProperty("IsPlayable", 'false')
+        xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
+
     def showMenu(self):
 
         xbmcplugin.setContent(HANDLE, 'files')
@@ -134,6 +143,8 @@ class  myMagenta(object):
                                         sItem.href = item['screen']['href']
                                         self.addSelector(sItem)
 
+
+            self.addHeading2('---------------------------', '')
 
             url = PATH + '?settings=SET'
             li = xbmcgui.ListItem(label='Einstellungen', thumbnailImage = '')
@@ -382,6 +393,29 @@ class  myMagenta(object):
                                         mItem.href = c.getTrailer()
                                         self.addTrailer(mItem)
 
+                                    partner = partnerInformation(jObj['content']['partnerInformation'][0])
+
+                                    if(partner.rentPrice == 0):
+                                        mItem = anyItem()
+                                        mItem.title = partner.name + ' Wiedergabe'
+                                        mItem.description = desc
+                                        mItem.thumb = thumb
+                                        self.addVOD(mItem)
+
+                                    if(partner.rentPrice != 0):
+                                        mItem = anyItem()
+                                        mItem.title = partner.name + ' mieten ab ' + str(float(partner.rentPrice)/100) + ' Euro'
+                                        mItem.description = desc
+                                        mItem.thumb = thumb
+                                        self.addVOD(mItem)
+
+                                    if(partner.buyPrice != 0):
+                                        mItem = anyItem()
+                                        mItem.title = partner.name + ' kaufen ab ' + str(float(partner.buyPrice)/100) + ' Euro'
+                                        mItem.description = desc
+                                        mItem.thumb = thumb
+                                        self.addVOD(mItem)
+
                                 # SUB CONTENT follows
                                 if  assetType == 'Series' or assetType == 'Season':
                                     self.addHeading(title)
@@ -509,6 +543,7 @@ class  myMagenta(object):
 
                         if 'fictionalCharacter' in ca:
                             nameFiction = ca['fictionalCharacter']['firstName']
+
                         castList.append(name)
 
                 li.setInfo('video', {'mpaa': c.childProtection })
