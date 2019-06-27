@@ -396,11 +396,14 @@ class  myMagenta(object):
                                     partner = partnerInformation(jObj['content']['partnerInformation'][0])
 
                                     if(partner.rentPrice == 0):
-                                        mItem = anyItem()
-                                        mItem.title = partner.name + ' Wiedergabe'
-                                        mItem.description = desc
-                                        mItem.thumb = thumb
-                                        self.addVOD(mItem)
+                                        title = partner.name + ' Wiedergabe'
+                                        if (partner.name == 'ARD Mediathek'):
+                                            url =  PATH + '?ard=' +  urllib.quote_plus(partner.launchUrl)
+
+                                            li = xbmcgui.ListItem(label=title, thumbnailImage=thumb)
+                                            li.setInfo('video', { 'plot': desc })
+                                            li.setProperty("IsPlayable", 'true')
+                                            xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
 
                                     if(partner.rentPrice != 0):
                                         mItem = anyItem()
@@ -924,6 +927,60 @@ class  myMagenta(object):
         xbmcplugin.addSortMethod(HANDLE, xbmcplugin.SORT_METHOD_LABEL)
         xbmcplugin.endOfDirectory(HANDLE, cacheToDisc=False)
 
+    def ardMediathek (self, href):
+
+        xbmc.log('MYMAGENTA (ARD Mediathek): ' + href)
+
+        # not nice...
+        m = re.search('documentId=(.*?)"', href + "\"")
+        if(m != None):
+            cast = m.group(1)
+
+            href = 'http://hbbtv.ardmediathek.de/hbbtv-ard/mediathek/play/media/2/entertain/' + cast + '?context=entertain'
+            xbmc.log('MYMAGENTA (ARD Mediathek OPEN): ' + href)
+
+            s = requests.Session()
+            response = s.get(href)
+
+            if (response.status_code == 200):
+
+                jObj = json.loads(response.text)
+
+                list = []
+                cnt = 0
+
+                thumb = ''
+                desc = ''
+
+                if '_previewImage' in jObj:
+                    thumb = jObj ['_previewImage']
+                if '_title' in jObj:
+                    desc = jObj ['_title']
+                if '_subTitle' in jObj:
+                    desc = desc + '\n' + jObj ['_subTitle']
+
+                for n in jObj['_mediaArray'][0]['_mediaStreamArray']:
+
+                    if '_width' in n:
+
+                        width = n ['_width']
+                        path =  n ['_stream']
+
+                        li = xbmcgui.ListItem(label = 'Stream  ' + str(width), path=path, thumbnailImage=thumb)
+                        li.setInfo('video', { 'plot': desc})
+                        list.append(li)
+                        cnt = cnt + 1
+
+                # we found a some streams
+                if cnt > 0:
+                    sel = cnt-1
+                    dialog = xbmcgui.Dialog()
+                    ret = dialog.select('Wähle einen Stream', list, preselect=sel)
+
+                    # user has done a choice
+                    if ret >=0:
+                        url =  list[ret].getPath()
+                        xbmc.Player().play(item=url, listitem=list[ret])
 
 if __name__ == '__main__':
 
@@ -955,6 +1012,8 @@ if __name__ == '__main__':
             magenta.showTV()
     elif PARAMS.has_key('settings'):
             ADDON.openSettings()
+    elif PARAMS.has_key('ard'):
+            magenta.ardMediathek(PARAMS['ard'][0])
     else:
         magenta.showMenu()
 
