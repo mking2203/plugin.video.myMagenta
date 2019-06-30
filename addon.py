@@ -715,7 +715,8 @@ class  myMagenta(object):
                 token = data ['csrfToken']
 
                 if query == '_menu':
-                    #shoe search menu
+                    #show search menu
+                    xbmcgui.Window(10000).setProperty('magentaSearch','') # clear search
                     url = PATH + '?search=_new'
                     li = xbmcgui.ListItem(label= 'Neue Suche')
                     xbmcplugin.addDirectoryItem(HANDLE, url, li, True)
@@ -933,6 +934,7 @@ class  myMagenta(object):
 
         # not nice...
         m = re.search('documentId=(.*?)"', href + "\"")
+        m = re.search('clipId=(.*?)&', href + "\"")
         if(m != None):
             cast = m.group(1)
 
